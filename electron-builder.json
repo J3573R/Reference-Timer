@@ -3,7 +3,8 @@
   "appId": "com.reference-timer.app",
   "productName": "Reference Timer",
   "directories": {
-    "output": "release"
+    "output": "release",
+    "buildResources": "build"
   },
   "files": [
     "dist/**/*",
@@ -11,6 +12,7 @@
   ],
   "mac": {
     "category": "public.app-category.productivity",
-    "target": ["dmg"]
+    "target": ["dmg"],
+    "icon": "build/icon.icns"
   }
 }

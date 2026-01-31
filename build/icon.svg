@@ -1,0 +1,42 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="white"/>
+
+  <!-- Shadow layer (offset down-right) -->
+  <g transform="translate(20, 20)">
+    <!-- Arm coming from top-left -->
+    <path d="M-50 -50 L120 120 L160 200 L130 230 L90 180 L-20 70 Z" fill="#505050"/>
+    <!-- Hand - side view, palm facing right -->
+    <path d="M120 120 L200 200 L240 300 L280 380 L260 420 L200 380 L160 300 L140 220 Z" fill="#505050"/>
+    <!-- Index finger curled around pen -->
+    <path d="M240 300 L320 380 L380 480 L350 520 L290 440 L240 360 Z" fill="#505050"/>
+    <!-- Middle finger -->
+    <path d="M280 380 L370 470 L420 560 L385 590 L320 510 L270 420 Z" fill="#505050"/>
+    <!-- Ring/pinky fingers (tucked) -->
+    <path d="M260 420 L310 480 L340 540 L310 560 L270 500 L240 450 Z" fill="#505050"/>
+    <!-- Thumb wrapping around pen from other side -->
+    <path d="M160 300 L220 340 L280 420 L250 460 L190 390 L150 330 Z" fill="#505050"/>
+    <!-- Pen shaft going to bottom-right -->
+    <path d="M340 420 L780 860 L820 840 L380 400 Z" fill="#505050"/>
+    <!-- Pen tip -->
+    <path d="M780 860 L850 930 L880 910 L820 840 Z" fill="#505050"/>
+  </g>
+
+  <!-- Main layer - black silhouette -->
+  <!-- Arm coming from top-left corner -->
+  <path d="M-50 -50 L120 120 L160 200 L130 230 L90 180 L-20 70 Z" fill="#1a1a1a"/>
+  <!-- Hand - side view, palm facing right -->
+  <path d="M120 120 L200 200 L240 300 L280 380 L260 420 L200 380 L160 300 L140 220 Z" fill="#1a1a1a"/>
+  <!-- Index finger curled around pen -->
+  <path d="M240 300 L320 380 L380 480 L350 520 L290 440 L240 360 Z" fill="#1a1a1a"/>
+  <!-- Middle finger -->
+  <path d="M280 380 L370 470 L420 560 L385 590 L320 510 L270 420 Z" fill="#1a1a1a"/>
+  <!-- Ring/pinky fingers (tucked) -->
+  <path d="M260 420 L310 480 L340 540 L310 560 L270 500 L240 450 Z" fill="#1a1a1a"/>
+  <!-- Thumb wrapping around pen from other side -->
+  <path d="M160 300 L220 340 L280 420 L250 460 L190 390 L150 330 Z" fill="#1a1a1a"/>
+  <!-- Pen shaft going to bottom-right -->
+  <path d="M340 420 L780 860 L820 840 L380 400 Z" fill="#1a1a1a"/>
+  <!-- Pen tip -->
+  <path d="M780 860 L850 930 L880 910 L820 840 Z" fill="#1a1a1a"/>
+</svg>
