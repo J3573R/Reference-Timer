@@ -36,7 +36,7 @@ const ImageCard = memo(function ImageCard({
   return (
     <div
       className={`image-card ${isSelected ? 'selected' : ''}`}
-      onClick={() => onToggleSelect(imagePath)}
+      onClick={() => onPreview(imagePath)}
     >
       <img
         src={`file://${thumbnailPath}`}
@@ -44,17 +44,16 @@ const ImageCard = memo(function ImageCard({
         loading="lazy"
         decoding="async"
       />
-      <div className="image-card-actions">
-        <button
-          className="preview-btn"
-          onClick={(e) => {
-            e.stopPropagation()
-            onPreview(imagePath)
-          }}
-          title="Preview image"
-        >
-          🔍
-        </button>
+      {/* Selection checkbox */}
+      <div
+        className={`image-card-checkbox ${isSelected ? 'checked' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggleSelect(imagePath)
+        }}
+        title={isSelected ? 'Deselect' : 'Select for session'}
+      >
+        {isSelected ? '✓' : ''}
       </div>
       <div className="image-card-overlay">
         <button

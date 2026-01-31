@@ -83,6 +83,7 @@ export default function App() {
   }, [referenceFolders])
 
   // Load images when selected path changes
+  // Note: We don't clear selectedImages here to allow multi-folder selection
   useEffect(() => {
     if (!selectedPath) {
       setCurrentImages([])
@@ -93,7 +94,6 @@ export default function App() {
     } else {
       window.electronAPI.fs.getImagesInFolder(selectedPath).then(setCurrentImages)
     }
-    setSelectedImages(new Set())
   }, [selectedPath, favorites])
 
   const handleManageFolders = useCallback(async () => {
