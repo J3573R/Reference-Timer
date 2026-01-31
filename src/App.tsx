@@ -2,7 +2,9 @@ import { useEffect, useState, useCallback } from 'react'
 import TopBar from './components/TopBar'
 import Sidebar from './components/Sidebar'
 import ImageGrid from './components/ImageGrid'
+import SessionModal, { type SessionConfig } from './components/SessionModal'
 import type { FolderNode } from './electron'
+import type { ProgressivePreset } from './types'
 
 export default function App() {
   const [referenceFolders, setReferenceFolders] = useState<string[]>([])
@@ -11,15 +13,19 @@ export default function App() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [currentImages, setCurrentImages] = useState<string[]>([])
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
+  const [presets, setPresets] = useState<ProgressivePreset[]>([])
+  const [showSessionModal, setShowSessionModal] = useState(false)
 
   // Load initial data
   useEffect(() => {
     Promise.all([
       window.electronAPI.store.get('referenceFolders'),
       window.electronAPI.store.get('favorites'),
-    ]).then(([folders, favs]) => {
+      window.electronAPI.store.get('progressivePresets'),
+    ]).then(([folders, favs, prsts]) => {
       setReferenceFolders(folders)
       setFavorites(favs)
+      setPresets(prsts)
     })
   }, [])
 
@@ -85,13 +91,25 @@ export default function App() {
     setFavorites(newFavorites)
   }, [favorites])
 
+  const handleSavePreset = useCallback(async (preset: ProgressivePreset) => {
+    const newPresets = [...presets, preset]
+    await window.electronAPI.store.set('progressivePresets', newPresets)
+    setPresets(newPresets)
+  }, [presets])
+
+  const handleStartSession = useCallback((config: SessionConfig) => {
+    console.log('Starting session:', config, 'with images:', Array.from(selectedImages))
+    setShowSessionModal(false)
+    // TODO: Launch session view
+  }, [selectedImages])
+
   return (
     <div className="app">
       <TopBar
         selectedCount={selectedImages.size}
         onManageFolders={handleManageFolders}
         onHistory={() => {/* TODO */}}
-        onStartSession={() => {/* TODO */}}
+        onStartSession={() => setShowSessionModal(true)}
       />
       <div className="main-content">
         <Sidebar
@@ -124,6 +142,14 @@ export default function App() {
           </div>
         )}
       </div>
+      <SessionModal
+        isOpen={showSessionModal}
+        onClose={() => setShowSessionModal(false)}
+        onStart={handleStartSession}
+        selectedCount={selectedImages.size}
+        presets={presets}
+        onSavePreset={handleSavePreset}
+      />
     </div>
   )
 }
