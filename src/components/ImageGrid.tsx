@@ -62,8 +62,16 @@ const ImageCard = memo(function ImageCard({
             e.stopPropagation()
             onToggleFavorite(imagePath)
           }}
+          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
         >
-          {isFavorite ? '⭐' : '☆'}
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M8 1.5l2 4 4.5.5-3.25 3 .75 4.5L8 11.5l-4 2 .75-4.5L1.5 6l4.5-.5 2-4z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              fill={isFavorite ? 'currentColor' : 'none'}
+            />
+          </svg>
         </button>
       </div>
     </div>
@@ -169,7 +177,7 @@ export default function ImageGrid({
 
   return (
     <div className="image-grid-container">
-      <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+      <div className="grid-header">
         <button className="btn btn-secondary" onClick={onSelectAll}>
           Select All ({images.length})
         </button>
@@ -178,7 +186,7 @@ export default function ImageGrid({
             Clear Selection
           </button>
         )}
-        <span style={{ fontSize: 12, color: '#666', marginLeft: 'auto' }}>
+        <span className="grid-info">
           {isLoadingThumbnails
             ? `Loading thumbnails: ${cachedCount}/${totalCount}`
             : `${images.length} images`}

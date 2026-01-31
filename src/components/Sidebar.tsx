@@ -77,16 +77,16 @@ function FolderTreeItem({
 
   // Render expand arrow for folders - only show if we know there are children
   const renderExpandIcon = () => {
-    if (!node.exists) return <span style={{ width: 16, textAlign: 'center' }}>⚠️</span>
-    if (isLoading) return <span style={{ width: 16, textAlign: 'center' }}>⏳</span>
+    if (!node.exists) return <span style={{ width: 16, textAlign: 'center', fontSize: 12, opacity: 0.5 }}>!</span>
+    if (isLoading) return <span style={{ width: 16, textAlign: 'center', fontSize: 10, opacity: 0.4 }}>...</span>
     if (hasKnownChildren) {
       // Only show arrow if we know there are children
       return (
         <span
-          style={{ width: 16, textAlign: 'center', cursor: 'pointer' }}
+          style={{ width: 16, textAlign: 'center', cursor: 'pointer', fontSize: 10, opacity: 0.5 }}
           onClick={handleToggleExpand}
         >
-          {isExpanded ? '▼' : '▶'}
+          {isExpanded ? '▾' : '▸'}
         </span>
       )
     }
@@ -102,9 +102,19 @@ function FolderTreeItem({
         style={{ paddingLeft: 8 + depth * 16 }}
       >
         {renderExpandIcon()}
-        <span className="folder-item-icon">
-          {isExpanded ? '📂' : '📁'}
-        </span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          style={{ opacity: 0.6, flexShrink: 0 }}
+        >
+          {isExpanded ? (
+            <path d="M1.5 3.5h13c.28 0 .5.22.5.5v8c0 .28-.22.5-.5.5h-13c-.28 0-.5-.22-.5-.5V4c0-.28.22-.5.5-.5z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+          ) : (
+            <path d="M1.5 3.5h5l1 1.5h6.5c.28 0 .5.22.5.5v6.5c0 .28-.22.5-.5.5h-12c-.28 0-.5-.22-.5-.5v-8c0-.28.22-.5.5-.5z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+          )}
+        </svg>
         <span className="folder-item-name">{node.name}</span>
       </div>
       {isExpanded && children.length > 0 && children.map(child => (
@@ -128,7 +138,15 @@ export default function Sidebar({ folders, favorites, selectedPath, onSelectFold
           className={`folder-item ${selectedPath === '__favorites__' ? 'selected' : ''}`}
           onClick={onSelectFavorites}
         >
-          <span className="folder-item-icon">⭐</span>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            style={{ opacity: 0.6, flexShrink: 0 }}
+          >
+            <path d="M8 1.5l2 4 4.5.5-3.25 3 .75 4.5L8 11.5l-4 2 .75-4.5L1.5 6l4.5-.5 2-4z" stroke="currentColor" strokeWidth="1.2" fill={selectedPath === '__favorites__' ? 'currentColor' : 'none'}/>
+          </svg>
           <span className="folder-item-name">Favorites ({favorites.length})</span>
         </div>
       </div>
