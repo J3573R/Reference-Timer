@@ -5,6 +5,7 @@ A macOS desktop application for timed drawing reference practice, similar to [Pr
 ## Features
 
 ### Image Management
+
 - **Folder-based organization** - Add reference folders and browse nested subfolders in a tree view
 - **Multi-folder selection** - Select images from different folders to build your practice session
 - **Favorites** - Mark images as favorites for quick access
@@ -12,12 +13,14 @@ A macOS desktop application for timed drawing reference practice, similar to [Pr
 - **Background processing** - Thumbnails generate in the background on app launch
 
 ### Image Preview
+
 - **Full-screen preview** - Click any image to view it full-size
 - **Zoom and pan** - Mouse wheel to zoom, drag to pan when zoomed in
 - **Keyboard navigation** - Arrow keys to browse, +/- to zoom, Escape to close
 - **Quick browsing** - Navigate through images without leaving preview mode
 
 ### Practice Sessions
+
 - **Fixed time mode** - Set a specific duration per image (e.g., 30 seconds, 2 minutes)
 - **Progressive mode** - Create presets with varying times (e.g., 30s warmups, then 2min studies)
 - **Audio chime** - Optional sound notification when time is up
@@ -30,6 +33,7 @@ The app features a dark theme with a sidebar for folder navigation and a grid vi
 ## Installation
 
 ### Prerequisites
+
 - Node.js 18+
 - npm or yarn
 
@@ -68,6 +72,7 @@ npm run package
 ### Keyboard Shortcuts
 
 #### In Preview Mode
+
 | Key | Action |
 |-----|--------|
 | `Esc` | Close preview |
@@ -77,6 +82,7 @@ npm run package
 | `0` | Reset zoom |
 
 #### In Session Mode
+
 | Key | Action |
 |-----|--------|
 | `Space` | Pause/Resume timer |
@@ -112,9 +118,11 @@ reference-timer/
 ## Configuration
 
 Settings are stored in the app's user data directory:
+
 - **macOS**: `~/Library/Application Support/reference-timer/`
 
 Stored data includes:
+
 - Reference folder paths
 - Favorite images
 - Progressive timer presets

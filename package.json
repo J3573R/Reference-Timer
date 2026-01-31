@@ -1,11 +1,8 @@
 {
   "name": "reference-timer",
   "version": "1.0.0",
-  "description": "",
+  "description": "A macOS desktop application for timed drawing reference practice",
   "main": "dist-electron/electron/main.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
     "dev": "concurrently \"vite\" \"npm run electron:dev\"",
     "electron:dev": "tsc -p tsconfig.electron.json && NODE_ENV=development electron .",
