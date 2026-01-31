@@ -19,6 +19,7 @@ declare global {
       fs: {
         selectFolder: () => Promise<string | null>
         scanFolder: (folderPath: string) => Promise<FolderNode>
+        getSubfolders: (folderPath: string) => Promise<FolderNode[]>
         getImagesInFolder: (folderPath: string) => Promise<string[]>
         fileExists: (filePath: string) => Promise<boolean>
       }

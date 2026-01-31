@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import { getStore } from './store.js'
-import { selectFolder, scanFolder, getImagesInFolder, fileExists } from './fileSystem.js'
+import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists } from './fileSystem.js'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -28,6 +28,10 @@ ipcMain.handle('fs:selectFolder', async () => {
 
 ipcMain.handle('fs:scanFolder', (_event, folderPath: string) => {
   return scanFolder(folderPath)
+})
+
+ipcMain.handle('fs:getSubfolders', (_event, folderPath: string) => {
+  return getSubfolders(folderPath)
 })
 
 ipcMain.handle('fs:getImagesInFolder', (_event, folderPath: string) => {

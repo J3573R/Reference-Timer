@@ -11,41 +11,56 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
   const intervalRef = useRef<number | null>(null)
   const onCompleteRef = useRef(onComplete)
 
-  onCompleteRef.current = onComplete
+  // Keep onComplete ref updated
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
 
-  const clearTimer = useCallback(() => {
+  // Timer effect - runs when isPaused changes or timeLeft becomes > 0
+  useEffect(() => {
+    // Clear any existing interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
     }
-  }, [])
 
-  const startTimer = useCallback(() => {
-    clearTimer()
+    // Don't start if paused or time is up
+    if (isPaused || timeLeft <= 0) {
+      return
+    }
+
+    // Start the interval
     intervalRef.current = window.setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          clearTimer()
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current)
+            intervalRef.current = null
+          }
           onCompleteRef.current()
           return 0
         }
         return prev - 1
       })
     }, 1000)
-  }, [clearTimer])
 
-  useEffect(() => {
-    if (!isPaused && timeLeft > 0) {
-      startTimer()
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
-    return clearTimer
-  }, [isPaused, startTimer, clearTimer])
+  }, [isPaused, timeLeft > 0]) // Only re-run when pause state changes or timer starts/stops
 
   const reset = useCallback((newDuration: number) => {
-    clearTimer()
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
     setTimeLeft(newDuration)
     setIsPaused(false)
-  }, [clearTimer])
+  }, [])
 
   const togglePause = useCallback(() => {
     setIsPaused(prev => !prev)

@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react'
 import type { FolderNode } from '../electron'
 
 interface SidebarProps {
@@ -19,33 +20,61 @@ function FolderTreeItem({
   onSelect: (path: string) => void
   depth?: number
 }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [children, setChildren] = useState<FolderNode[]>(node.children || [])
+  const [isLoading, setIsLoading] = useState(false)
+
   if (node.type !== 'folder') return null
 
   const isSelected = selectedPath === node.path
-  const hasChildren = node.children && node.children.some(c => c.type === 'folder')
+
+  const handleExpand = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!isExpanded && children.length === 0) {
+      // Lazy load subfolders
+      setIsLoading(true)
+      try {
+        const subfolders = await window.electronAPI.fs.getSubfolders(node.path)
+        setChildren(subfolders)
+      } catch (err) {
+        console.error('Error loading subfolders:', err)
+      }
+      setIsLoading(false)
+    }
+
+    setIsExpanded(!isExpanded)
+  }, [isExpanded, children.length, node.path])
+
+  const handleSelect = useCallback(() => {
+    onSelect(node.path)
+  }, [onSelect, node.path])
 
   return (
     <div>
       <div
         className={`folder-item ${isSelected ? 'selected' : ''} ${!node.exists ? 'missing' : ''}`}
-        onClick={() => onSelect(node.path)}
+        onClick={handleSelect}
         style={{ paddingLeft: 12 + depth * 16 }}
       >
-        <span className="folder-item-icon">{node.exists ? '📁' : '⚠️'}</span>
+        <span
+          className="folder-item-icon"
+          onClick={handleExpand}
+          style={{ cursor: 'pointer', userSelect: 'none' }}
+        >
+          {!node.exists ? '⚠️' : isLoading ? '⏳' : isExpanded ? '📂' : '📁'}
+        </span>
         <span className="folder-item-name">{node.name}</span>
       </div>
-      {hasChildren && node.children!
-        .filter(c => c.type === 'folder')
-        .map(child => (
-          <FolderTreeItem
-            key={child.path}
-            node={child}
-            selectedPath={selectedPath}
-            onSelect={onSelect}
-            depth={depth + 1}
-          />
-        ))
-      }
+      {isExpanded && children.length > 0 && children.map(child => (
+        <FolderTreeItem
+          key={child.path}
+          node={child}
+          selectedPath={selectedPath}
+          onSelect={onSelect}
+          depth={depth + 1}
+        />
+      ))}
     </div>
   )
 }
