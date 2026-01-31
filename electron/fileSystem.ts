@@ -1,8 +1,26 @@
-import { dialog } from 'electron'
+import { dialog, app } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
+import sharp from 'sharp'
 
 const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
+const THUMBNAIL_SIZE = 200 // Thumbnail size in pixels
+
+// Get or create thumbnails directory
+function getThumbnailsDir(): string {
+  const thumbnailsDir = path.join(app.getPath('userData'), 'thumbnails')
+  if (!fs.existsSync(thumbnailsDir)) {
+    fs.mkdirSync(thumbnailsDir, { recursive: true })
+  }
+  return thumbnailsDir
+}
+
+// Generate a hash for a file path to use as thumbnail filename
+function getThumbnailPath(imagePath: string): string {
+  const hash = crypto.createHash('md5').update(imagePath).digest('hex')
+  return path.join(getThumbnailsDir(), `${hash}.jpg`)
+}
 
 export function isImageFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase()
@@ -112,4 +130,59 @@ export function getImagesInFolder(folderPath: string): string[] {
 
 export function fileExists(filePath: string): boolean {
   return fs.existsSync(filePath)
+}
+
+// Generate a thumbnail for an image, returns the thumbnail path
+export async function getThumbnail(imagePath: string): Promise<string> {
+  const thumbnailPath = getThumbnailPath(imagePath)
+
+  // Return cached thumbnail if it exists and is newer than the original
+  if (fs.existsSync(thumbnailPath)) {
+    try {
+      const thumbStat = fs.statSync(thumbnailPath)
+      const origStat = fs.statSync(imagePath)
+      if (thumbStat.mtimeMs > origStat.mtimeMs) {
+        return thumbnailPath
+      }
+    } catch {
+      // If we can't stat, just regenerate
+    }
+  }
+
+  try {
+    await sharp(imagePath)
+      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+        fit: 'cover',
+        position: 'center',
+      })
+      .jpeg({ quality: 80 })
+      .toFile(thumbnailPath)
+
+    return thumbnailPath
+  } catch (error) {
+    console.error(`Error generating thumbnail for ${imagePath}:`, error)
+    // Return original path as fallback
+    return imagePath
+  }
+}
+
+// Generate thumbnails for multiple images in parallel (with concurrency limit)
+export async function getThumbnails(imagePaths: string[]): Promise<Map<string, string>> {
+  const results = new Map<string, string>()
+  const CONCURRENCY = 4 // Process 4 images at a time
+
+  for (let i = 0; i < imagePaths.length; i += CONCURRENCY) {
+    const batch = imagePaths.slice(i, i + CONCURRENCY)
+    const thumbnails = await Promise.all(
+      batch.map(async (imagePath) => {
+        const thumbnail = await getThumbnail(imagePath)
+        return { imagePath, thumbnail }
+      })
+    )
+    for (const { imagePath, thumbnail } of thumbnails) {
+      results.set(imagePath, thumbnail)
+    }
+  }
+
+  return results
 }

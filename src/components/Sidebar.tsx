@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { FolderNode } from '../electron'
 
 interface SidebarProps {
@@ -13,30 +13,48 @@ function FolderTreeItem({
   node,
   selectedPath,
   onSelect,
-  depth = 0
+  depth = 0,
+  defaultExpanded = false
 }: {
   node: FolderNode
   selectedPath: string | null
   onSelect: (path: string) => void
   depth?: number
+  defaultExpanded?: boolean
 }) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const [children, setChildren] = useState<FolderNode[]>(node.children || [])
   const [isLoading, setIsLoading] = useState(false)
+  const [hasLoadedChildren, setHasLoadedChildren] = useState(false)
 
   if (node.type !== 'folder') return null
 
   const isSelected = selectedPath === node.path
 
+  // Auto-expand top level folders on mount
+  useEffect(() => {
+    if (defaultExpanded && !hasLoadedChildren && children.length === 0) {
+      setIsLoading(true)
+      window.electronAPI.fs.getSubfolders(node.path)
+        .then(subfolders => {
+          setChildren(subfolders)
+          setHasLoadedChildren(true)
+        })
+        .catch(err => console.error('Error loading subfolders:', err))
+        .finally(() => setIsLoading(false))
+    }
+  }, [defaultExpanded, hasLoadedChildren, children.length, node.path])
+
   const handleExpand = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation()
 
-    if (!isExpanded && children.length === 0) {
+    if (!isExpanded && !hasLoadedChildren) {
       // Lazy load subfolders
       setIsLoading(true)
       try {
         const subfolders = await window.electronAPI.fs.getSubfolders(node.path)
         setChildren(subfolders)
+        setHasLoadedChildren(true)
       } catch (err) {
         console.error('Error loading subfolders:', err)
       }
@@ -44,7 +62,7 @@ function FolderTreeItem({
     }
 
     setIsExpanded(!isExpanded)
-  }, [isExpanded, children.length, node.path])
+  }, [isExpanded, hasLoadedChildren, node.path])
 
   const handleSelect = useCallback(() => {
     onSelect(node.path)
@@ -105,6 +123,7 @@ export default function Sidebar({ folders, favorites, selectedPath, onSelectFold
               node={folder}
               selectedPath={selectedPath}
               onSelect={onSelectFolder}
+              defaultExpanded={true}
             />
           ))
         )}

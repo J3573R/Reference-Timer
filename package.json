@@ -18,7 +18,8 @@
   "type": "commonjs",
   "dependencies": {
     "electron-store": "^11.0.2",
-    "react-window": "^2.2.6"
+    "react-window": "^2.2.6",
+    "sharp": "^0.34.5"
   },
   "build": {
     "extends": "./electron-builder.json"
@@ -27,7 +28,6 @@
     "@types/node": "^25.1.0",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
-    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^5.1.2",
     "concurrently": "^9.2.1",
     "electron": "^40.1.0",

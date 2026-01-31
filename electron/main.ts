@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import { getStore } from './store.js'
-import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists } from './fileSystem.js'
+import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists, getThumbnail, getThumbnails } from './fileSystem.js'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -40,6 +40,16 @@ ipcMain.handle('fs:getImagesInFolder', (_event, folderPath: string) => {
 
 ipcMain.handle('fs:fileExists', (_event, filePath: string) => {
   return fileExists(filePath)
+})
+
+ipcMain.handle('fs:getThumbnail', async (_event, imagePath: string) => {
+  return getThumbnail(imagePath)
+})
+
+ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[]) => {
+  const map = await getThumbnails(imagePaths)
+  // Convert Map to object for IPC serialization
+  return Object.fromEntries(map)
 })
 
 function createWindow() {

@@ -22,6 +22,8 @@ declare global {
         getSubfolders: (folderPath: string) => Promise<FolderNode[]>
         getImagesInFolder: (folderPath: string) => Promise<string[]>
         fileExists: (filePath: string) => Promise<boolean>
+        getThumbnail: (imagePath: string) => Promise<string>
+        getThumbnails: (imagePaths: string[]) => Promise<Record<string, string>>
       }
     }
   }

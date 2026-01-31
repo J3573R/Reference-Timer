@@ -1,5 +1,4 @@
-import { useCallback, useMemo, useRef, useEffect, useState } from 'react'
-import { Grid } from 'react-window'
+import { useMemo, useRef, useEffect, useState, memo } from 'react'
 
 interface ImageGridProps {
   images: string[]
@@ -11,8 +10,49 @@ interface ImageGridProps {
   onToggleFavorite: (path: string) => void
 }
 
-const CARD_SIZE = 160 // Image card size in pixels
-const GAP = 12 // Gap between cards
+const THUMBNAIL_BATCH_SIZE = 20
+
+// Memoized image card component
+const ImageCard = memo(function ImageCard({
+  imagePath,
+  thumbnailPath,
+  isSelected,
+  isFavorite,
+  onToggleSelect,
+  onToggleFavorite,
+}: {
+  imagePath: string
+  thumbnailPath: string
+  isSelected: boolean
+  isFavorite: boolean
+  onToggleSelect: (path: string) => void
+  onToggleFavorite: (path: string) => void
+}) {
+  return (
+    <div
+      className={`image-card ${isSelected ? 'selected' : ''}`}
+      onClick={() => onToggleSelect(imagePath)}
+    >
+      <img
+        src={`file://${thumbnailPath}`}
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
+      <div className="image-card-overlay">
+        <button
+          className={`favorite-btn ${isFavorite ? 'active' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleFavorite(imagePath)
+          }}
+        >
+          {isFavorite ? '⭐' : '☆'}
+        </button>
+      </div>
+    </div>
+  )
+})
 
 export default function ImageGrid({
   images,
@@ -23,84 +63,51 @@ export default function ImageGrid({
   onClearSelection,
   onToggleFavorite
 }: ImageGridProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({})
+  const [loadingThumbnails, setLoadingThumbnails] = useState(false)
 
   // Convert favorites array to Set for O(1) lookup
   const favoritesSet = useMemo(() => new Set(favorites), [favorites])
 
-  // Measure container size
+  // Load thumbnails progressively when images change
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    const updateSize = () => {
-      setContainerSize({
-        width: container.clientWidth,
-        height: container.clientHeight - 52, // Subtract header height
-      })
+    if (images.length === 0) {
+      setThumbnails({})
+      return
     }
 
-    updateSize()
+    let cancelled = false
+    setLoadingThumbnails(true)
 
-    const observer = new ResizeObserver(updateSize)
-    observer.observe(container)
+    async function loadThumbnails() {
+      for (let i = 0; i < images.length; i += THUMBNAIL_BATCH_SIZE) {
+        if (cancelled) break
 
-    return () => observer.disconnect()
-  }, [])
+        const batch = images.slice(i, i + THUMBNAIL_BATCH_SIZE)
+        try {
+          const batchThumbnails = await window.electronAPI.fs.getThumbnails(batch)
+          if (!cancelled) {
+            setThumbnails(prev => ({ ...prev, ...batchThumbnails }))
+          }
+        } catch (error) {
+          console.error('Error loading thumbnails:', error)
+        }
+      }
+      if (!cancelled) {
+        setLoadingThumbnails(false)
+      }
+    }
 
-  // Calculate grid dimensions
-  const columnCount = Math.max(1, Math.floor((containerSize.width + GAP) / (CARD_SIZE + GAP)))
-  const rowCount = Math.ceil(images.length / columnCount)
+    loadThumbnails()
 
-  // Cell renderer
-  const Cell = useCallback(({ columnIndex, rowIndex, style }: {
-    columnIndex: number
-    rowIndex: number
-    style: React.CSSProperties
-  }) => {
-    const index = rowIndex * columnCount + columnIndex
-    if (index >= images.length) return null
-
-    const imagePath = images[index]
-    const isSelected = selectedImages.has(imagePath)
-    const isFavorite = favoritesSet.has(imagePath)
-
-    return (
-      <div
-        style={{
-          ...style,
-          left: Number(style.left) + GAP,
-          top: Number(style.top) + GAP,
-          width: CARD_SIZE,
-          height: CARD_SIZE,
-        }}
-      >
-        <div
-          className={`image-card ${isSelected ? 'selected' : ''}`}
-          onClick={() => onToggleSelect(imagePath)}
-          style={{ width: '100%', height: '100%' }}
-        >
-          <img src={`file://${imagePath}`} alt="" loading="lazy" />
-          <div className="image-card-overlay">
-            <button
-              className={`favorite-btn ${isFavorite ? 'active' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                onToggleFavorite(imagePath)
-              }}
-            >
-              {isFavorite ? '⭐' : '☆'}
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }, [images, selectedImages, favoritesSet, columnCount, onToggleSelect, onToggleFavorite])
+    return () => {
+      cancelled = true
+    }
+  }, [images])
 
   if (images.length === 0) {
     return (
-      <div className="image-grid-container" ref={containerRef}>
+      <div className="image-grid-container">
         <div className="empty-state">
           <p>No images in this folder</p>
         </div>
@@ -109,8 +116,8 @@ export default function ImageGrid({
   }
 
   return (
-    <div className="image-grid-container" ref={containerRef}>
-      <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div className="image-grid-container">
+      <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
         <button className="btn btn-secondary" onClick={onSelectAll}>
           Select All ({images.length})
         </button>
@@ -119,25 +126,23 @@ export default function ImageGrid({
             Clear Selection
           </button>
         )}
-        {images.length > 100 && (
-          <span style={{ fontSize: 12, color: '#666', marginLeft: 'auto' }}>
-            Showing {images.length} images (virtualized)
-          </span>
-        )}
+        <span style={{ fontSize: 12, color: '#666', marginLeft: 'auto' }}>
+          {loadingThumbnails ? 'Loading thumbnails...' : `${images.length} images`}
+        </span>
       </div>
-      {containerSize.width > 0 && containerSize.height > 0 && (
-        <Grid
-          columnCount={columnCount}
-          columnWidth={CARD_SIZE + GAP}
-          height={containerSize.height}
-          rowCount={rowCount}
-          rowHeight={CARD_SIZE + GAP}
-          width={containerSize.width}
-          style={{ outline: 'none' }}
-        >
-          {Cell}
-        </Grid>
-      )}
+      <div className="image-grid">
+        {images.map(imagePath => (
+          <ImageCard
+            key={imagePath}
+            imagePath={imagePath}
+            thumbnailPath={thumbnails[imagePath] || imagePath}
+            isSelected={selectedImages.has(imagePath)}
+            isFavorite={favoritesSet.has(imagePath)}
+            onToggleSelect={onToggleSelect}
+            onToggleFavorite={onToggleFavorite}
+          />
+        ))}
+      </div>
     </div>
   )
 }

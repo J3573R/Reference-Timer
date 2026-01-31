@@ -12,5 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSubfolders: (folderPath: string) => ipcRenderer.invoke('fs:getSubfolders', folderPath),
     getImagesInFolder: (folderPath: string) => ipcRenderer.invoke('fs:getImagesInFolder', folderPath),
     fileExists: (filePath: string) => ipcRenderer.invoke('fs:fileExists', filePath),
+    getThumbnail: (imagePath: string) => ipcRenderer.invoke('fs:getThumbnail', imagePath),
+    getThumbnails: (imagePaths: string[]) => ipcRenderer.invoke('fs:getThumbnails', imagePaths),
   },
 })
