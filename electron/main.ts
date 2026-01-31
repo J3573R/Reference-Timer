@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import { getStore } from './store.js'
-import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists, getThumbnail, getThumbnails } from './fileSystem.js'
+import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists, getThumbnail, getThumbnails, generateThumbnailsInBackground } from './fileSystem.js'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -50,6 +50,14 @@ ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[]) => {
   const map = await getThumbnails(imagePaths)
   // Convert Map to object for IPC serialization
   return Object.fromEntries(map)
+})
+
+// Background thumbnail generation
+ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: string[]) => {
+  generateThumbnailsInBackground(folderPaths, (current, total) => {
+    // Send progress updates to renderer
+    mainWindow?.webContents.send('thumbnail-progress', { current, total })
+  })
 })
 
 function createWindow() {

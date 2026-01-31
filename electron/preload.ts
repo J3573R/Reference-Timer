@@ -14,5 +14,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fileExists: (filePath: string) => ipcRenderer.invoke('fs:fileExists', filePath),
     getThumbnail: (imagePath: string) => ipcRenderer.invoke('fs:getThumbnail', imagePath),
     getThumbnails: (imagePaths: string[]) => ipcRenderer.invoke('fs:getThumbnails', imagePaths),
+    generateThumbnailsInBackground: (folderPaths: string[]) => ipcRenderer.invoke('fs:generateThumbnailsInBackground', folderPaths),
+    onThumbnailProgress: (callback: (progress: { current: number; total: number }) => void) => {
+      ipcRenderer.on('thumbnail-progress', (_event, progress) => callback(progress))
+    },
+    removeThumbnailProgressListener: () => {
+      ipcRenderer.removeAllListeners('thumbnail-progress')
+    },
   },
 })

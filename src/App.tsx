@@ -26,6 +26,7 @@ export default function App() {
   const [sessionHistory, setSessionHistory] = useState<Session[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [thumbnailProgress, setThumbnailProgress] = useState<{ current: number; total: number } | null>(null)
 
   // Load initial data
   useEffect(() => {
@@ -53,6 +54,31 @@ export default function App() {
     Promise.all(
       referenceFolders.map(f => window.electronAPI.fs.scanFolder(f))
     ).then(setFolderTrees)
+  }, [referenceFolders])
+
+  // Start background thumbnail generation when folders are loaded
+  useEffect(() => {
+    if (referenceFolders.length === 0) return
+
+    // Set up progress listener
+    window.electronAPI.fs.onThumbnailProgress((progress) => {
+      if (progress.total === 0) {
+        setThumbnailProgress(null)
+      } else {
+        setThumbnailProgress(progress)
+      }
+      if (progress.current >= progress.total) {
+        // Generation complete
+        setTimeout(() => setThumbnailProgress(null), 2000)
+      }
+    })
+
+    // Start background generation
+    window.electronAPI.fs.generateThumbnailsInBackground(referenceFolders)
+
+    return () => {
+      window.electronAPI.fs.removeThumbnailProgressListener()
+    }
   }, [referenceFolders])
 
   // Load images when selected path changes
@@ -193,6 +219,7 @@ export default function App() {
         onHistory={() => setShowHistory(true)}
         onSettings={() => setShowSettings(true)}
         onStartSession={() => setShowSessionModal(true)}
+        thumbnailProgress={thumbnailProgress}
       />
       <div className="main-content">
         <Sidebar

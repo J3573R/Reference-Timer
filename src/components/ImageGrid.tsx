@@ -1,4 +1,5 @@
-import { useMemo, useRef, useEffect, useState, memo } from 'react'
+import { useMemo, useEffect, useState, memo, useCallback } from 'react'
+import ImagePreview from './ImagePreview'
 
 interface ImageGridProps {
   images: string[]
@@ -20,6 +21,7 @@ const ImageCard = memo(function ImageCard({
   isFavorite,
   onToggleSelect,
   onToggleFavorite,
+  onPreview,
 }: {
   imagePath: string
   thumbnailPath: string
@@ -27,6 +29,7 @@ const ImageCard = memo(function ImageCard({
   isFavorite: boolean
   onToggleSelect: (path: string) => void
   onToggleFavorite: (path: string) => void
+  onPreview: (path: string) => void
 }) {
   return (
     <div
@@ -39,6 +42,18 @@ const ImageCard = memo(function ImageCard({
         loading="lazy"
         decoding="async"
       />
+      <div className="image-card-actions">
+        <button
+          className="preview-btn"
+          onClick={(e) => {
+            e.stopPropagation()
+            onPreview(imagePath)
+          }}
+          title="Preview image"
+        >
+          🔍
+        </button>
+      </div>
       <div className="image-card-overlay">
         <button
           className={`favorite-btn ${isFavorite ? 'active' : ''}`}
@@ -65,6 +80,7 @@ export default function ImageGrid({
 }: ImageGridProps) {
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({})
   const [loadingThumbnails, setLoadingThumbnails] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   // Convert favorites array to Set for O(1) lookup
   const favoritesSet = useMemo(() => new Set(favorites), [favorites])
@@ -105,6 +121,31 @@ export default function ImageGrid({
     }
   }, [images])
 
+  // Preview navigation
+  const currentPreviewIndex = previewImage ? images.indexOf(previewImage) : -1
+  const hasPrev = currentPreviewIndex > 0
+  const hasNext = currentPreviewIndex < images.length - 1
+
+  const handlePreview = useCallback((path: string) => {
+    setPreviewImage(path)
+  }, [])
+
+  const handlePrevImage = useCallback(() => {
+    if (currentPreviewIndex > 0) {
+      setPreviewImage(images[currentPreviewIndex - 1])
+    }
+  }, [currentPreviewIndex, images])
+
+  const handleNextImage = useCallback(() => {
+    if (currentPreviewIndex < images.length - 1) {
+      setPreviewImage(images[currentPreviewIndex + 1])
+    }
+  }, [currentPreviewIndex, images])
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewImage(null)
+  }, [])
+
   if (images.length === 0) {
     return (
       <div className="image-grid-container">
@@ -140,9 +181,22 @@ export default function ImageGrid({
             isFavorite={favoritesSet.has(imagePath)}
             onToggleSelect={onToggleSelect}
             onToggleFavorite={onToggleFavorite}
+            onPreview={handlePreview}
           />
         ))}
       </div>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <ImagePreview
+          imagePath={previewImage}
+          onClose={handleClosePreview}
+          onPrev={handlePrevImage}
+          onNext={handleNextImage}
+          hasPrev={hasPrev}
+          hasNext={hasNext}
+        />
+      )}
     </div>
   )
 }

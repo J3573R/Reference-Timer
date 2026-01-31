@@ -186,3 +186,82 @@ export async function getThumbnails(imagePaths: string[]): Promise<Map<string, s
 
   return results
 }
+
+// Recursively find all images in a folder tree
+export function getAllImagesRecursive(folderPath: string): string[] {
+  const images: string[] = []
+
+  if (!fs.existsSync(folderPath)) {
+    return images
+  }
+
+  try {
+    const entries = fs.readdirSync(folderPath, { withFileTypes: true })
+
+    for (const entry of entries) {
+      const fullPath = path.join(folderPath, entry.name)
+      if (entry.isDirectory()) {
+        // Recursively scan subdirectories
+        images.push(...getAllImagesRecursive(fullPath))
+      } else if (entry.isFile() && isImageFile(entry.name)) {
+        images.push(fullPath)
+      }
+    }
+  } catch (error) {
+    console.error(`Error scanning folder ${folderPath}:`, error)
+  }
+
+  return images
+}
+
+// Check if a thumbnail needs to be generated (doesn't exist or is outdated)
+function needsThumbnail(imagePath: string): boolean {
+  const thumbnailPath = getThumbnailPath(imagePath)
+
+  if (!fs.existsSync(thumbnailPath)) {
+    return true
+  }
+
+  try {
+    const thumbStat = fs.statSync(thumbnailPath)
+    const origStat = fs.statSync(imagePath)
+    return thumbStat.mtimeMs <= origStat.mtimeMs
+  } catch {
+    return true
+  }
+}
+
+// Background thumbnail generation with progress callback
+export async function generateThumbnailsInBackground(
+  folderPaths: string[],
+  onProgress?: (current: number, total: number) => void
+): Promise<void> {
+  // Collect all images from all folders
+  const allImages: string[] = []
+  for (const folderPath of folderPaths) {
+    allImages.push(...getAllImagesRecursive(folderPath))
+  }
+
+  // Filter to only images that need thumbnails
+  const needsGeneration = allImages.filter(needsThumbnail)
+
+  if (needsGeneration.length === 0) {
+    onProgress?.(0, 0)
+    return
+  }
+
+  const total = needsGeneration.length
+  let completed = 0
+  const CONCURRENCY = 2 // Lower concurrency for background processing
+
+  for (let i = 0; i < needsGeneration.length; i += CONCURRENCY) {
+    const batch = needsGeneration.slice(i, i + CONCURRENCY)
+    await Promise.all(
+      batch.map(async (imagePath) => {
+        await getThumbnail(imagePath)
+        completed++
+        onProgress?.(completed, total)
+      })
+    )
+  }
+}
