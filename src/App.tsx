@@ -27,6 +27,7 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [thumbnailProgress, setThumbnailProgress] = useState<{ current: number; total: number } | null>(null)
+  const [thumbnailCache, setThumbnailCache] = useState<Record<string, string>>({})
 
   // Load initial data
   useEffect(() => {
@@ -238,6 +239,10 @@ export default function App() {
             onSelectAll={handleSelectAll}
             onClearSelection={handleClearSelection}
             onToggleFavorite={handleToggleFavorite}
+            thumbnailCache={thumbnailCache}
+            onThumbnailsLoaded={(newThumbnails) => {
+              setThumbnailCache(prev => ({ ...prev, ...newThumbnails }))
+            }}
           />
         ) : (
           <div className="image-grid-container">

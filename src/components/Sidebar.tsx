@@ -30,10 +30,11 @@ function FolderTreeItem({
   if (node.type !== 'folder') return null
 
   const isSelected = selectedPath === node.path
+  const hasKnownChildren = children.length > 0
 
   // Auto-expand top level folders on mount
   useEffect(() => {
-    if (defaultExpanded && !hasLoadedChildren && children.length === 0) {
+    if (defaultExpanded && !hasLoadedChildren) {
       setIsLoading(true)
       window.electronAPI.fs.getSubfolders(node.path)
         .then(subfolders => {
@@ -43,44 +44,61 @@ function FolderTreeItem({
         .catch(err => console.error('Error loading subfolders:', err))
         .finally(() => setIsLoading(false))
     }
-  }, [defaultExpanded, hasLoadedChildren, children.length, node.path])
+  }, [defaultExpanded, hasLoadedChildren, node.path])
 
-  const handleExpand = useCallback(async (e: React.MouseEvent) => {
+  const handleToggleExpand = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation()
 
-    if (!isExpanded && !hasLoadedChildren) {
+    if (!hasLoadedChildren) {
       // Lazy load subfolders
       setIsLoading(true)
       try {
         const subfolders = await window.electronAPI.fs.getSubfolders(node.path)
         setChildren(subfolders)
         setHasLoadedChildren(true)
+        setIsExpanded(true)
       } catch (err) {
         console.error('Error loading subfolders:', err)
       }
       setIsLoading(false)
+    } else {
+      setIsExpanded(!isExpanded)
     }
-
-    setIsExpanded(!isExpanded)
-  }, [isExpanded, hasLoadedChildren, node.path])
+  }, [hasLoadedChildren, isExpanded, node.path])
 
   const handleSelect = useCallback(() => {
     onSelect(node.path)
   }, [onSelect, node.path])
+
+  // Render expand arrow for folders
+  const renderExpandIcon = () => {
+    if (!node.exists) return <span style={{ width: 16, textAlign: 'center' }}>⚠️</span>
+    if (isLoading) return <span style={{ width: 16, textAlign: 'center' }}>⏳</span>
+    if (!hasLoadedChildren || hasKnownChildren) {
+      // Show arrow if we haven't loaded children yet (might have some) or if we know there are children
+      return (
+        <span
+          style={{ width: 16, textAlign: 'center', cursor: 'pointer' }}
+          onClick={handleToggleExpand}
+        >
+          {isExpanded ? '▼' : '▶'}
+        </span>
+      )
+    }
+    // No children - show empty space for alignment
+    return <span style={{ width: 16 }}></span>
+  }
 
   return (
     <div>
       <div
         className={`folder-item ${isSelected ? 'selected' : ''} ${!node.exists ? 'missing' : ''}`}
         onClick={handleSelect}
-        style={{ paddingLeft: 12 + depth * 16 }}
+        style={{ paddingLeft: 8 + depth * 16 }}
       >
-        <span
-          className="folder-item-icon"
-          onClick={handleExpand}
-          style={{ cursor: 'pointer', userSelect: 'none' }}
-        >
-          {!node.exists ? '⚠️' : isLoading ? '⏳' : isExpanded ? '📂' : '📁'}
+        {renderExpandIcon()}
+        <span className="folder-item-icon">
+          {isExpanded ? '📂' : '📁'}
         </span>
         <span className="folder-item-name">{node.name}</span>
       </div>

@@ -9,6 +9,8 @@ interface ImageGridProps {
   onSelectAll: () => void
   onClearSelection: () => void
   onToggleFavorite: (path: string) => void
+  thumbnailCache: Record<string, string>
+  onThumbnailsLoaded: (thumbnails: Record<string, string>) => void
 }
 
 const THUMBNAIL_BATCH_SIZE = 20
@@ -76,19 +78,27 @@ export default function ImageGrid({
   onToggleSelect,
   onSelectAll,
   onClearSelection,
-  onToggleFavorite
+  onToggleFavorite,
+  thumbnailCache,
+  onThumbnailsLoaded
 }: ImageGridProps) {
-  const [thumbnails, setThumbnails] = useState<Record<string, string>>({})
   const [loadingThumbnails, setLoadingThumbnails] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   // Convert favorites array to Set for O(1) lookup
   const favoritesSet = useMemo(() => new Set(favorites), [favorites])
 
-  // Load thumbnails progressively when images change
+  // Load thumbnails progressively when images change, using cache
   useEffect(() => {
     if (images.length === 0) {
-      setThumbnails({})
+      return
+    }
+
+    // Filter to only images not in cache
+    const uncachedImages = images.filter(img => !thumbnailCache[img])
+
+    if (uncachedImages.length === 0) {
+      // All images already in cache
       return
     }
 
@@ -96,14 +106,14 @@ export default function ImageGrid({
     setLoadingThumbnails(true)
 
     async function loadThumbnails() {
-      for (let i = 0; i < images.length; i += THUMBNAIL_BATCH_SIZE) {
+      for (let i = 0; i < uncachedImages.length; i += THUMBNAIL_BATCH_SIZE) {
         if (cancelled) break
 
-        const batch = images.slice(i, i + THUMBNAIL_BATCH_SIZE)
+        const batch = uncachedImages.slice(i, i + THUMBNAIL_BATCH_SIZE)
         try {
           const batchThumbnails = await window.electronAPI.fs.getThumbnails(batch)
           if (!cancelled) {
-            setThumbnails(prev => ({ ...prev, ...batchThumbnails }))
+            onThumbnailsLoaded(batchThumbnails)
           }
         } catch (error) {
           console.error('Error loading thumbnails:', error)
@@ -119,7 +129,7 @@ export default function ImageGrid({
     return () => {
       cancelled = true
     }
-  }, [images])
+  }, [images, thumbnailCache, onThumbnailsLoaded])
 
   // Preview navigation
   const currentPreviewIndex = previewImage ? images.indexOf(previewImage) : -1
@@ -176,7 +186,7 @@ export default function ImageGrid({
           <ImageCard
             key={imagePath}
             imagePath={imagePath}
-            thumbnailPath={thumbnails[imagePath] || imagePath}
+            thumbnailPath={thumbnailCache[imagePath] || imagePath}
             isSelected={selectedImages.has(imagePath)}
             isFavorite={favoritesSet.has(imagePath)}
             onToggleSelect={onToggleSelect}

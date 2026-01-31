@@ -93,12 +93,19 @@ export default function ImagePreview({
     setPosition({ x: 0, y: 0 })
   }
 
+  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+    // Close if clicking the container background, not the image
+    if (e.target === containerRef.current) {
+      onClose()
+    }
+  }, [onClose])
+
   return (
     <div className="image-preview-overlay" onClick={onClose}>
       <div
         ref={containerRef}
         className="image-preview-container"
-        onClick={e => e.stopPropagation()}
+        onClick={handleContainerClick}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -110,6 +117,7 @@ export default function ImagePreview({
           src={`file://${imagePath}`}
           alt=""
           draggable={false}
+          onClick={e => e.stopPropagation()}
           style={{
             transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
