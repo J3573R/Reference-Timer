@@ -3,8 +3,9 @@ import TopBar from './components/TopBar'
 import Sidebar from './components/Sidebar'
 import ImageGrid from './components/ImageGrid'
 import SessionModal, { type SessionConfig } from './components/SessionModal'
+import SessionView from './components/SessionView'
 import type { FolderNode } from './electron'
-import type { ProgressivePreset } from './types'
+import type { ProgressivePreset, Session, Settings } from './types'
 
 export default function App() {
   const [referenceFolders, setReferenceFolders] = useState<string[]>([])
@@ -14,7 +15,12 @@ export default function App() {
   const [currentImages, setCurrentImages] = useState<string[]>([])
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
   const [presets, setPresets] = useState<ProgressivePreset[]>([])
+  const [settings, setSettings] = useState<Settings>({ audioChime: true })
   const [showSessionModal, setShowSessionModal] = useState(false)
+  const [activeSession, setActiveSession] = useState<{
+    config: SessionConfig
+    images: string[]
+  } | null>(null)
 
   // Load initial data
   useEffect(() => {
@@ -22,10 +28,12 @@ export default function App() {
       window.electronAPI.store.get('referenceFolders'),
       window.electronAPI.store.get('favorites'),
       window.electronAPI.store.get('progressivePresets'),
-    ]).then(([folders, favs, prsts]) => {
+      window.electronAPI.store.get('settings'),
+    ]).then(([folders, favs, prsts, sttngs]) => {
       setReferenceFolders(folders)
       setFavorites(favs)
       setPresets(prsts)
+      setSettings(sttngs)
     })
   }, [])
 
@@ -98,10 +106,31 @@ export default function App() {
   }, [presets])
 
   const handleStartSession = useCallback((config: SessionConfig) => {
-    console.log('Starting session:', config, 'with images:', Array.from(selectedImages))
     setShowSessionModal(false)
-    // TODO: Launch session view
+    setActiveSession({
+      config,
+      images: Array.from(selectedImages),
+    })
   }, [selectedImages])
+
+  const handleEndSession = useCallback(async (session: Session) => {
+    const history = await window.electronAPI.store.get('sessionHistory')
+    await window.electronAPI.store.set('sessionHistory', [...history, session])
+    setActiveSession(null)
+  }, [])
+
+  if (activeSession) {
+    return (
+      <SessionView
+        config={activeSession.config}
+        images={activeSession.images}
+        presets={presets}
+        audioChime={settings.audioChime}
+        onEnd={handleEndSession}
+        onBack={() => setActiveSession(null)}
+      />
+    )
+  }
 
   return (
     <div className="app">
