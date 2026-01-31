@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import TopBar from './components/TopBar'
+import SettingsModal from './components/SettingsModal'
 import Sidebar from './components/Sidebar'
 import ImageGrid from './components/ImageGrid'
 import SessionModal, { type SessionConfig } from './components/SessionModal'
@@ -24,6 +25,7 @@ export default function App() {
   } | null>(null)
   const [sessionHistory, setSessionHistory] = useState<Session[]>([])
   const [showHistory, setShowHistory] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   // Load initial data
   useEffect(() => {
@@ -130,6 +132,35 @@ export default function App() {
     setSessionHistory([])
   }, [])
 
+  const handleUpdateSettings = useCallback(async (newSettings: Settings) => {
+    await window.electronAPI.store.set('settings', newSettings)
+    setSettings(newSettings)
+  }, [])
+
+  const handleRemoveFolder = useCallback(async (path: string) => {
+    const newFolders = referenceFolders.filter(f => f !== path)
+    await window.electronAPI.store.set('referenceFolders', newFolders)
+    setReferenceFolders(newFolders)
+    if (selectedPath === path) {
+      setSelectedPath(null)
+    }
+  }, [referenceFolders, selectedPath])
+
+  const handleCleanupFavorites = useCallback(async () => {
+    const results = await Promise.all(
+      favorites.map(async f => ({ path: f, exists: await window.electronAPI.fs.fileExists(f) }))
+    )
+    const validFavorites = results.filter(r => r.exists).map(r => r.path)
+    await window.electronAPI.store.set('favorites', validFavorites)
+    setFavorites(validFavorites)
+  }, [favorites])
+
+  const handleDeletePreset = useCallback(async (name: string) => {
+    const newPresets = presets.filter(p => p.name !== name)
+    await window.electronAPI.store.set('progressivePresets', newPresets)
+    setPresets(newPresets)
+  }, [presets])
+
   const handleRerunSession = useCallback((session: Session) => {
     setShowHistory(false)
     setActiveSession({
@@ -159,8 +190,8 @@ export default function App() {
     <div className="app">
       <TopBar
         selectedCount={selectedImages.size}
-        onManageFolders={handleManageFolders}
         onHistory={() => setShowHistory(true)}
+        onSettings={() => setShowSettings(true)}
         onStartSession={() => setShowSessionModal(true)}
       />
       <div className="main-content">
@@ -207,6 +238,22 @@ export default function App() {
           sessions={sessionHistory}
           onClose={() => setShowHistory(false)}
           onRerun={handleRerunSession}
+          onClearHistory={handleClearHistory}
+        />
+      )}
+      {showSettings && (
+        <SettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          settings={settings}
+          onUpdateSettings={handleUpdateSettings}
+          referenceFolders={referenceFolders}
+          onAddFolder={handleManageFolders}
+          onRemoveFolder={handleRemoveFolder}
+          favorites={favorites}
+          onCleanupFavorites={handleCleanupFavorites}
+          presets={presets}
+          onDeletePreset={handleDeletePreset}
           onClearHistory={handleClearHistory}
         />
       )}

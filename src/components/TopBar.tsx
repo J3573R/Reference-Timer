@@ -1,17 +1,17 @@
 interface TopBarProps {
   selectedCount: number
-  onManageFolders: () => void
   onHistory: () => void
+  onSettings: () => void
   onStartSession: () => void
 }
 
-export default function TopBar({ selectedCount, onManageFolders, onHistory, onStartSession }: TopBarProps) {
+export default function TopBar({ selectedCount, onHistory, onSettings, onStartSession }: TopBarProps) {
   return (
     <div className="top-bar">
       <h1>Reference Timer</h1>
       <div className="top-bar-actions">
-        <button className="btn btn-secondary" onClick={onManageFolders}>
-          Manage Folders
+        <button className="btn btn-secondary" onClick={onSettings}>
+          Settings
         </button>
         <button className="btn btn-secondary" onClick={onHistory}>
           History
