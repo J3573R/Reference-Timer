@@ -16,7 +16,7 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
     onCompleteRef.current = onComplete
   }, [onComplete])
 
-  // Timer effect - runs when isPaused changes or timeLeft becomes > 0
+  // Timer effect - runs when isPaused changes
   useEffect(() => {
     // Clear any existing interval
     if (intervalRef.current) {
@@ -51,7 +51,7 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
         intervalRef.current = null
       }
     }
-  }, [isPaused, timeLeft > 0]) // Only re-run when pause state changes or timer starts/stops
+  }, [isPaused]) // Only re-run when pause state changes
 
   const reset = useCallback((newDuration: number) => {
     if (intervalRef.current) {

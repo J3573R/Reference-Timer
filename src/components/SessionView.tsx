@@ -149,7 +149,10 @@ export default function SessionView({
   }, [togglePause, goToNext, goToPrevious])
 
   const handleEndSession = useCallback(() => {
-    recordImageTime()
+    const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
+    const currentImage = { path: current.imagePath, timeSpent }
+    const allImages = [...sessionImages, currentImage]
+
     const totalTime = Math.round((Date.now() - startTime) / 1000)
     const session: Session = {
       id: crypto.randomUUID(),
@@ -158,10 +161,10 @@ export default function SessionView({
       preset: config.preset,
       totalTime,
       complete: false,
-      images: sessionImages,
+      images: allImages,
     }
     onEnd(session)
-  }, [recordImageTime, startTime, config, sessionImages, onEnd])
+  }, [current?.imagePath, imageStartTime, startTime, config, sessionImages, onEnd])
 
   const handleComplete = useCallback(() => {
     const totalTime = Math.round((Date.now() - startTime) / 1000)
