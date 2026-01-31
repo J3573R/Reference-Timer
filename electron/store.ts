@@ -1,39 +1,4 @@
-interface Stage {
-  duration: number
-  count: number
-}
-
-interface ProgressivePreset {
-  name: string
-  stages: Stage[]
-}
-
-interface SessionImage {
-  path: string
-  timeSpent: number
-}
-
-interface Session {
-  id: string
-  date: string
-  mode: 'simple' | 'class' | 'progressive'
-  preset?: string
-  totalTime: number
-  complete: boolean
-  images: SessionImage[]
-}
-
-interface Settings {
-  audioChime: boolean
-}
-
-export interface AppData {
-  referenceFolders: string[]
-  favorites: string[]
-  progressivePresets: ProgressivePreset[]
-  sessionHistory: Session[]
-  settings: Settings
-}
+import type { AppData, ProgressivePreset } from '../shared/types'
 
 const defaultPresets: ProgressivePreset[] = [
   {
@@ -77,3 +42,5 @@ export async function getStore(): Promise<StoreType> {
   store = new Store<AppData>({ defaults }) as unknown as StoreType
   return store
 }
+
+export type { AppData }
