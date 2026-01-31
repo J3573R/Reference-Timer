@@ -60,10 +60,19 @@ export default function ImagePreview({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose, onPrev, onNext, hasPrev, hasNext])
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -0.1 : 0.1
-    setZoom(z => Math.min(Math.max(z + delta, 0.25), 5))
+  // Handle wheel zoom with non-passive listener to allow preventDefault
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -0.1 : 0.1
+      setZoom(z => Math.min(Math.max(z + delta, 0.25), 5))
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
   }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -106,7 +115,6 @@ export default function ImagePreview({
         ref={containerRef}
         className="image-preview-container"
         onClick={handleContainerClick}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
