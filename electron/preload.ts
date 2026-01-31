@@ -6,4 +6,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     set: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value),
     getAll: () => ipcRenderer.invoke('store:getAll'),
   },
+  fs: {
+    selectFolder: () => ipcRenderer.invoke('fs:selectFolder'),
+    scanFolder: (folderPath: string) => ipcRenderer.invoke('fs:scanFolder', folderPath),
+    getImagesInFolder: (folderPath: string) => ipcRenderer.invoke('fs:getImagesInFolder', folderPath),
+    fileExists: (filePath: string) => ipcRenderer.invoke('fs:fileExists', filePath),
+  },
 })

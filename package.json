@@ -2,7 +2,7 @@
   "name": "reference-timer",
   "version": "1.0.0",
   "description": "",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron/main.js",
   "directories": {
     "doc": "docs"
   },

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import { getStore } from './store.js'
+import { selectFolder, scanFolder, getImagesInFolder, fileExists } from './fileSystem.js'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -20,6 +21,23 @@ ipcMain.handle('store:getAll', async () => {
   return store.store
 })
 
+// File system handlers
+ipcMain.handle('fs:selectFolder', async () => {
+  return selectFolder()
+})
+
+ipcMain.handle('fs:scanFolder', (_event, folderPath: string) => {
+  return scanFolder(folderPath)
+})
+
+ipcMain.handle('fs:getImagesInFolder', (_event, folderPath: string) => {
+  return getImagesInFolder(folderPath)
+})
+
+ipcMain.handle('fs:fileExists', (_event, filePath: string) => {
+  return fileExists(filePath)
+})
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -35,7 +53,7 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173')
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
 }
 
