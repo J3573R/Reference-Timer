@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "concurrently \"vite\" \"npm run electron:dev\"",
-    "electron:dev": "tsc -p tsconfig.electron.json && electron .",
+    "electron:dev": "NODE_ENV=development tsc -p tsconfig.electron.json && electron .",
     "build": "tsc -p tsconfig.electron.json && vite build",
     "package": "npm run build && electron-builder"
   },
@@ -17,11 +17,11 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "electron": "^40.1.0",
     "electron-store": "^11.0.2"
   },
   "devDependencies": {
     "@types/node": "^25.1.0",
+    "electron": "^40.1.0",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
