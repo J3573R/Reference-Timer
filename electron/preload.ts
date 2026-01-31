@@ -1,5 +1,9 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Will add IPC methods here
+  store: {
+    get: (key: string) => ipcRenderer.invoke('store:get', key),
+    set: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value),
+    getAll: () => ipcRenderer.invoke('store:getAll'),
+  },
 })

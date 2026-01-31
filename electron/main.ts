@@ -1,7 +1,24 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
+import { getStore } from './store.js'
 
 let mainWindow: BrowserWindow | null = null
+
+// IPC Handlers
+ipcMain.handle('store:get', async (_event, key: string) => {
+  const store = await getStore()
+  return store.get(key as keyof typeof store.store)
+})
+
+ipcMain.handle('store:set', async (_event, key: string, value: unknown) => {
+  const store = await getStore()
+  store.set(key as keyof typeof store.store, value as never)
+})
+
+ipcMain.handle('store:getAll', async () => {
+  const store = await getStore()
+  return store.store
+})
 
 function createWindow() {
   mainWindow = new BrowserWindow({

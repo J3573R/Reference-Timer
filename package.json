@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "concurrently \"vite\" \"npm run electron:dev\"",
-    "electron:dev": "NODE_ENV=development tsc -p tsconfig.electron.json && electron .",
+    "electron:dev": "tsc -p tsconfig.electron.json && NODE_ENV=development electron .",
     "build": "tsc -p tsconfig.electron.json && vite build",
     "package": "npm run build && electron-builder"
   },
