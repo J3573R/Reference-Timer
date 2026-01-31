@@ -19,6 +19,9 @@
   "dependencies": {
     "electron-store": "^11.0.2"
   },
+  "build": {
+    "extends": "./electron-builder.json"
+  },
   "devDependencies": {
     "@types/node": "^25.1.0",
     "electron": "^40.1.0",
