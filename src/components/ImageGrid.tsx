@@ -82,11 +82,17 @@ export default function ImageGrid({
   thumbnailCache,
   onThumbnailsLoaded
 }: ImageGridProps) {
-  const [loadingThumbnails, setLoadingThumbnails] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   // Convert favorites array to Set for O(1) lookup
   const favoritesSet = useMemo(() => new Set(favorites), [favorites])
+
+  // Calculate thumbnail loading progress
+  const cachedCount = useMemo(() => {
+    return images.filter(img => thumbnailCache[img]).length
+  }, [images, thumbnailCache])
+  const totalCount = images.length
+  const isLoadingThumbnails = cachedCount < totalCount
 
   // Load thumbnails progressively when images change, using cache
   useEffect(() => {
@@ -103,7 +109,6 @@ export default function ImageGrid({
     }
 
     let cancelled = false
-    setLoadingThumbnails(true)
 
     async function loadThumbnails() {
       for (let i = 0; i < uncachedImages.length; i += THUMBNAIL_BATCH_SIZE) {
@@ -118,9 +123,6 @@ export default function ImageGrid({
         } catch (error) {
           console.error('Error loading thumbnails:', error)
         }
-      }
-      if (!cancelled) {
-        setLoadingThumbnails(false)
       }
     }
 
@@ -178,7 +180,9 @@ export default function ImageGrid({
           </button>
         )}
         <span style={{ fontSize: 12, color: '#666', marginLeft: 'auto' }}>
-          {loadingThumbnails ? 'Loading thumbnails...' : `${images.length} images`}
+          {isLoadingThumbnails
+            ? `Loading thumbnails: ${cachedCount}/${totalCount}`
+            : `${images.length} images`}
         </span>
       </div>
       <div className="image-grid">

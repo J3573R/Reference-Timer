@@ -32,14 +32,19 @@ function FolderTreeItem({
   const isSelected = selectedPath === node.path
   const hasKnownChildren = children.length > 0
 
-  // Auto-expand top level folders on mount
+  // Load subfolders on mount to know if we should show expand arrow
+  // Also auto-expand if defaultExpanded is true
   useEffect(() => {
-    if (defaultExpanded && !hasLoadedChildren) {
+    if (!hasLoadedChildren) {
       setIsLoading(true)
       window.electronAPI.fs.getSubfolders(node.path)
         .then(subfolders => {
           setChildren(subfolders)
           setHasLoadedChildren(true)
+          // Only auto-expand if defaultExpanded and there are children
+          if (defaultExpanded && subfolders.length > 0) {
+            setIsExpanded(true)
+          }
         })
         .catch(err => console.error('Error loading subfolders:', err))
         .finally(() => setIsLoading(false))
@@ -70,12 +75,12 @@ function FolderTreeItem({
     onSelect(node.path)
   }, [onSelect, node.path])
 
-  // Render expand arrow for folders
+  // Render expand arrow for folders - only show if we know there are children
   const renderExpandIcon = () => {
     if (!node.exists) return <span style={{ width: 16, textAlign: 'center' }}>⚠️</span>
     if (isLoading) return <span style={{ width: 16, textAlign: 'center' }}>⏳</span>
-    if (!hasLoadedChildren || hasKnownChildren) {
-      // Show arrow if we haven't loaded children yet (might have some) or if we know there are children
+    if (hasKnownChildren) {
+      // Only show arrow if we know there are children
       return (
         <span
           style={{ width: 16, textAlign: 'center', cursor: 'pointer' }}
@@ -85,7 +90,7 @@ function FolderTreeItem({
         </span>
       )
     }
-    // No children - show empty space for alignment
+    // No children or haven't loaded yet - show empty space for alignment
     return <span style={{ width: 16 }}></span>
   }
 
