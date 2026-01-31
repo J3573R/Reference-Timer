@@ -1,0 +1,35 @@
+{
+  "name": "reference-timer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist-electron/main.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "concurrently \"vite\" \"npm run electron:dev\"",
+    "electron:dev": "tsc -p tsconfig.electron.json && electron .",
+    "build": "tsc -p tsconfig.electron.json && vite build",
+    "package": "npm run build && electron-builder"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "electron": "^40.1.0",
+    "electron-store": "^11.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.1.0",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "concurrently": "^9.2.1",
+    "electron-builder": "^26.4.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
