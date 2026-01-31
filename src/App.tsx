@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar'
 import ImageGrid from './components/ImageGrid'
 import SessionModal, { type SessionConfig } from './components/SessionModal'
 import SessionView from './components/SessionView'
+import HistoryView from './components/HistoryView'
 import type { FolderNode } from './electron'
 import type { ProgressivePreset, Session, Settings } from './types'
 
@@ -21,6 +22,8 @@ export default function App() {
     config: SessionConfig
     images: string[]
   } | null>(null)
+  const [sessionHistory, setSessionHistory] = useState<Session[]>([])
+  const [showHistory, setShowHistory] = useState(false)
 
   // Load initial data
   useEffect(() => {
@@ -29,11 +32,13 @@ export default function App() {
       window.electronAPI.store.get('favorites'),
       window.electronAPI.store.get('progressivePresets'),
       window.electronAPI.store.get('settings'),
-    ]).then(([folders, favs, prsts, sttngs]) => {
+      window.electronAPI.store.get('sessionHistory'),
+    ]).then(([folders, favs, prsts, sttngs, history]) => {
       setReferenceFolders(folders)
       setFavorites(favs)
       setPresets(prsts)
       setSettings(sttngs)
+      setSessionHistory(history)
     })
   }, [])
 
@@ -114,9 +119,27 @@ export default function App() {
   }, [selectedImages])
 
   const handleEndSession = useCallback(async (session: Session) => {
-    const history = await window.electronAPI.store.get('sessionHistory')
-    await window.electronAPI.store.set('sessionHistory', [...history, session])
+    const newHistory = [...sessionHistory, session]
+    await window.electronAPI.store.set('sessionHistory', newHistory)
+    setSessionHistory(newHistory)
     setActiveSession(null)
+  }, [sessionHistory])
+
+  const handleClearHistory = useCallback(async () => {
+    await window.electronAPI.store.set('sessionHistory', [])
+    setSessionHistory([])
+  }, [])
+
+  const handleRerunSession = useCallback((session: Session) => {
+    setShowHistory(false)
+    setActiveSession({
+      config: {
+        mode: session.mode,
+        timePerImage: session.images[0]?.timeSpent || 60,
+        preset: session.preset,
+      },
+      images: session.images.map(img => img.path),
+    })
   }, [])
 
   if (activeSession) {
@@ -137,7 +160,7 @@ export default function App() {
       <TopBar
         selectedCount={selectedImages.size}
         onManageFolders={handleManageFolders}
-        onHistory={() => {/* TODO */}}
+        onHistory={() => setShowHistory(true)}
         onStartSession={() => setShowSessionModal(true)}
       />
       <div className="main-content">
@@ -179,6 +202,14 @@ export default function App() {
         presets={presets}
         onSavePreset={handleSavePreset}
       />
+      {showHistory && (
+        <HistoryView
+          sessions={sessionHistory}
+          onClose={() => setShowHistory(false)}
+          onRerun={handleRerunSession}
+          onClearHistory={handleClearHistory}
+        />
+      )}
     </div>
   )
 }
