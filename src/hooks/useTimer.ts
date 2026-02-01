@@ -8,6 +8,7 @@ interface UseTimerOptions {
 export function useTimer({ duration, onComplete }: UseTimerOptions) {
   const [timeLeft, setTimeLeft] = useState(duration)
   const [isPaused, setIsPaused] = useState(false)
+  const [resetTrigger, setResetTrigger] = useState(0)
   const intervalRef = useRef<number | null>(null)
   const onCompleteRef = useRef(onComplete)
 
@@ -16,7 +17,7 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
     onCompleteRef.current = onComplete
   }, [onComplete])
 
-  // Timer effect - runs when isPaused changes
+  // Timer effect - runs when isPaused changes or after reset
   useEffect(() => {
     // Clear any existing interval
     if (intervalRef.current) {
@@ -51,7 +52,7 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
         intervalRef.current = null
       }
     }
-  }, [isPaused]) // Only re-run when pause state changes
+  }, [isPaused, resetTrigger]) // Re-run when pause state changes or after reset
 
   const reset = useCallback((newDuration: number) => {
     if (intervalRef.current) {
@@ -60,6 +61,7 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
     }
     setTimeLeft(newDuration)
     setIsPaused(false)
+    setResetTrigger(prev => prev + 1) // Trigger effect to restart
   }, [])
 
   const togglePause = useCallback(() => {
