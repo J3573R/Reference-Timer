@@ -594,7 +594,7 @@ body {
 }
 
 .session-image.paused {
-  opacity: 0.4;
+  /* No longer darkening on pause - user preference */
 }
 
 .session-image img {
@@ -690,12 +690,7 @@ body {
 }
 
 .paused-indicator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 80px;
-  color: rgba(255, 255, 255, 0.2);
+  display: none; /* Hidden - pause only affects timer, not image */
 }
 
 /* ===== Session Complete ===== */
