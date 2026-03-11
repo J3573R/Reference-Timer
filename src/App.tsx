@@ -63,10 +63,8 @@ export default function App() {
     ).then(setFolderTrees)
   }, [referenceFolders])
 
-  // Start background thumbnail generation when folders are loaded
+  // Set up thumbnail IPC listeners (mount/unmount lifecycle only)
   useEffect(() => {
-    if (referenceFolders.length === 0) return
-
     window.electronAPI.fs.onThumbnailProgress((progress) => {
       if (progress.total === 0) {
         setThumbnailProgress(null)
@@ -83,13 +81,17 @@ export default function App() {
       // Don't bump version for every background thumbnail — batch via persist
     })
 
-    window.electronAPI.fs.generateThumbnailsInBackground(referenceFolders)
-
     return () => {
       window.electronAPI.fs.removeThumbnailProgressListener()
       window.electronAPI.fs.removeThumbnailGeneratedListener()
     }
-  }, [referenceFolders])
+  }, [])
+
+  // Folder-scoped thumbnail generation: generate when selected folder changes
+  useEffect(() => {
+    if (!selectedPath || selectedPath === '__favorites__') return
+    window.electronAPI.fs.generateThumbnailsInBackground([selectedPath])
+  }, [selectedPath])
 
   // Load images when selected path changes
   // Note: We don't clear selectedImages here to allow multi-folder selection
