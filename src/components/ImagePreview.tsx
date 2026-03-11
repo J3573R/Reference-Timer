@@ -1,11 +1,10 @@
-import { useState, useCallback, useRef, useEffect, type MutableRefObject } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useImagePrefetch } from '../hooks/useImagePrefetch'
 
 interface ImagePreviewProps {
   imagePath: string
   imageList: string[]
   currentIndex: number
-  thumbnailCacheRef: MutableRefObject<Record<string, string>>
   onClose: () => void
   onPrev?: () => void
   onNext?: () => void
@@ -17,7 +16,6 @@ export default function ImagePreview({
   imagePath,
   imageList,
   currentIndex,
-  thumbnailCacheRef,
   onClose,
   onPrev,
   onNext,
@@ -29,15 +27,12 @@ export default function ImagePreview({
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
-  const [fullResLoaded, setFullResLoaded] = useState(false)
-
   const { isLoaded } = useImagePrefetch(currentIndex, imageList)
 
-  // Reset zoom, position, and load state when image changes
+  // Reset zoom and position when image changes
   useEffect(() => {
     setZoom(1)
     setPosition({ x: 0, y: 0 })
-    setFullResLoaded(false)
   }, [imagePath])
 
   // Handle keyboard navigation
@@ -133,30 +128,15 @@ export default function ImagePreview({
         style={{ cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
       >
         <div className="preview-image-wrapper">
-          {!fullResLoaded && !isLoaded(imagePath) && thumbnailCacheRef.current[imagePath] && (
-            <img
-              className="preview-image-thumbnail"
-              src={`file://${thumbnailCacheRef.current[imagePath]}`}
-              alt=""
-              draggable={false}
-              onClick={e => e.stopPropagation()}
-              style={{
-                transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-                transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-              }}
-            />
-          )}
           <img
             className="preview-image-full"
             src={`file://${imagePath}`}
             alt=""
             draggable={false}
             onClick={e => e.stopPropagation()}
-            onLoad={() => setFullResLoaded(true)}
             style={{
               transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
               transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-              opacity: fullResLoaded || isLoaded(imagePath) ? 1 : 0,
             }}
           />
         </div>
