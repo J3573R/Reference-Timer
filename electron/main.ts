@@ -1,9 +1,29 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import { getStore } from './store.js'
-import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists, getThumbnail, getThumbnails, generateThumbnailsInBackground } from './fileSystem.js'
+import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists, getAllImagesRecursive, needsThumbnail } from './fileSystem.js'
+import { ThumbnailQueue } from './thumbnailQueue.js'
 
 let mainWindow: BrowserWindow | null = null
+
+const thumbnailQueue = new ThumbnailQueue(6)
+
+// Debounced persistent cache writes — accumulates in memory, flushes every 2 seconds
+let pendingCacheUpdates: Record<string, string> = {}
+let cacheFlushTimer: ReturnType<typeof setTimeout> | null = null
+
+async function updatePersistentCache(imagePath: string, thumbnailPath: string) {
+  pendingCacheUpdates[imagePath] = thumbnailPath
+  if (cacheFlushTimer) return // already scheduled
+  cacheFlushTimer = setTimeout(async () => {
+    const store = await getStore()
+    const cache = store.get('thumbnailCache') || {}
+    Object.assign(cache, pendingCacheUpdates)
+    store.set('thumbnailCache', cache)
+    pendingCacheUpdates = {}
+    cacheFlushTimer = null
+  }, 2000)
+}
 
 // IPC Handlers
 ipcMain.handle('store:get', async (_event, key: string) => {
@@ -42,22 +62,48 @@ ipcMain.handle('fs:fileExists', (_event, filePath: string) => {
   return fileExists(filePath)
 })
 
-ipcMain.handle('fs:getThumbnail', async (_event, imagePath: string) => {
-  return getThumbnail(imagePath)
+ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[], priority: 'high' | 'low' = 'high') => {
+  const results = await thumbnailQueue.enqueueBatch(imagePaths, priority)
+  // Feed results into persistent cache
+  for (const [imgPath, thumbPath] of Object.entries(results)) {
+    if (thumbPath !== imgPath) {
+      updatePersistentCache(imgPath, thumbPath)
+    }
+  }
+  return results
 })
 
-ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[]) => {
-  const map = await getThumbnails(imagePaths)
-  // Convert Map to object for IPC serialization
-  return Object.fromEntries(map)
-})
-
-// Background thumbnail generation
 ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: string[]) => {
-  generateThumbnailsInBackground(folderPaths, (current, total) => {
-    // Send progress updates to renderer
-    mainWindow?.webContents.send('thumbnail-progress', { current, total })
-  })
+  // Collect all images that need thumbnails
+  const allImages: string[] = []
+  for (const folderPath of folderPaths) {
+    allImages.push(...getAllImagesRecursive(folderPath))
+  }
+  const needsGen = allImages.filter(needsThumbnail)
+
+  if (needsGen.length === 0) {
+    mainWindow?.webContents.send('thumbnail-progress', { current: 0, total: 0 })
+    return
+  }
+
+  const total = needsGen.length
+  let completed = 0
+
+  // Enqueue ALL background images into the shared queue at low priority
+  // This ensures foreground (visible) requests always take precedence
+  for (const imagePath of needsGen) {
+    thumbnailQueue.enqueue(imagePath, 'low').then((thumbnailPath) => {
+      completed++
+      mainWindow?.webContents.send('thumbnail-progress', { current: completed, total })
+      if (thumbnailPath !== imagePath) {
+        updatePersistentCache(imagePath, thumbnailPath)
+        mainWindow?.webContents.send('thumbnail-generated', { imagePath, thumbnailPath })
+      }
+    }).catch(() => {
+      completed++
+      mainWindow?.webContents.send('thumbnail-progress', { current: completed, total })
+    })
+  }
 })
 
 function createWindow() {

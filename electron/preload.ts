@@ -12,14 +12,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSubfolders: (folderPath: string) => ipcRenderer.invoke('fs:getSubfolders', folderPath),
     getImagesInFolder: (folderPath: string) => ipcRenderer.invoke('fs:getImagesInFolder', folderPath),
     fileExists: (filePath: string) => ipcRenderer.invoke('fs:fileExists', filePath),
-    getThumbnail: (imagePath: string) => ipcRenderer.invoke('fs:getThumbnail', imagePath),
-    getThumbnails: (imagePaths: string[]) => ipcRenderer.invoke('fs:getThumbnails', imagePaths),
-    generateThumbnailsInBackground: (folderPaths: string[]) => ipcRenderer.invoke('fs:generateThumbnailsInBackground', folderPaths),
+    getThumbnails: (imagePaths: string[], priority: 'high' | 'low' = 'high') =>
+      ipcRenderer.invoke('fs:getThumbnails', imagePaths, priority),
+    generateThumbnailsInBackground: (folderPaths: string[]) =>
+      ipcRenderer.invoke('fs:generateThumbnailsInBackground', folderPaths),
     onThumbnailProgress: (callback: (progress: { current: number; total: number }) => void) => {
       ipcRenderer.on('thumbnail-progress', (_event, progress) => callback(progress))
     },
+    onThumbnailGenerated: (callback: (data: { imagePath: string; thumbnailPath: string }) => void) => {
+      ipcRenderer.on('thumbnail-generated', (_event, data) => callback(data))
+    },
     removeThumbnailProgressListener: () => {
       ipcRenderer.removeAllListeners('thumbnail-progress')
+    },
+    removeThumbnailGeneratedListener: () => {
+      ipcRenderer.removeAllListeners('thumbnail-generated')
     },
   },
 })
