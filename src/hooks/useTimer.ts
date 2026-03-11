@@ -64,9 +64,19 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
     setResetTrigger(prev => prev + 1) // Trigger effect to restart
   }, [])
 
+  const resetAndStop = useCallback((newDuration: number) => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    setTimeLeft(newDuration)
+    setIsPaused(true)
+    setResetTrigger(prev => prev + 1)
+  }, [])
+
   const togglePause = useCallback(() => {
     setIsPaused(prev => !prev)
   }, [])
 
-  return { timeLeft, isPaused, togglePause, reset }
+  return { timeLeft, isPaused, togglePause, reset, resetAndStop }
 }

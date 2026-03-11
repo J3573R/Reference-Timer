@@ -122,10 +122,16 @@ export default function SessionView({
     }
   }, [currentIndex, recordImageTime])
 
-  const { timeLeft, isPaused, togglePause, reset } = useTimer({
+  const { timeLeft, isPaused, togglePause, reset, resetAndStop } = useTimer({
     duration: current?.duration || 60,
     onComplete: goToNext,
   })
+
+  const handleResetTimer = useCallback(() => {
+    if (current) {
+      resetAndStop(current.duration)
+    }
+  }, [current, resetAndStop])
 
   useEffect(() => {
     if (current) {
@@ -142,11 +148,13 @@ export default function SessionView({
         goToNext()
       } else if (e.code === 'ArrowLeft') {
         goToPrevious()
+      } else if (e.code === 'KeyR') {
+        handleResetTimer()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [togglePause, goToNext, goToPrevious])
+  }, [togglePause, goToNext, goToPrevious, handleResetTimer])
 
   const handleEndSession = useCallback(() => {
     const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
@@ -232,6 +240,14 @@ export default function SessionView({
           {current.stageName && (
             <span className="session-stage">{current.stageName}</span>
           )}
+        </div>
+        <div className="session-reset">
+          <button className="session-btn" onClick={handleResetTimer} title="Reset timer (R)">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M3.5 2.5v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3.5 7.5A7 7 0 1 1 3 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
         </div>
         <div className="session-controls">
           <button className="session-btn" onClick={goToPrevious} disabled={currentIndex === 0}>

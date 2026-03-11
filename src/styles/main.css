@@ -665,6 +665,13 @@ body {
   margin-top: 24px;
 }
 
+.session-reset {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+  margin-bottom: -8px;
+}
+
 .session-btn {
   width: 48px;
   height: 48px;
