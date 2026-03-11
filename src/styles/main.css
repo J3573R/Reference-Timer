@@ -177,31 +177,30 @@ body {
 /* ===== Image Grid ===== */
 .image-grid-container {
   flex: 1;
-  padding: 20px;
-  overflow-y: auto;
+  padding: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: var(--bg-primary);
 }
 
-.image-grid-container::-webkit-scrollbar {
+.image-grid ::-webkit-scrollbar {
   width: 8px;
 }
 
-.image-grid-container::-webkit-scrollbar-track {
+.image-grid ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.image-grid-container::-webkit-scrollbar-thumb {
+.image-grid ::-webkit-scrollbar-thumb {
   background: var(--border-default);
   border-radius: 4px;
 }
 
 .image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
+  flex: 1;
+  min-height: 0;
 }
 
 .image-card {
@@ -242,6 +241,26 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Thumbnail placeholder (shown while loading) */
+.image-card-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-tertiary);
+  background-image: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 0%,
+    var(--bg-elevated) 50%,
+    var(--bg-tertiary) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Selection checkbox */
@@ -1050,7 +1069,7 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
-  margin-bottom: 16px;
+  padding: 16px 20px;
   flex-shrink: 0;
 }
 
