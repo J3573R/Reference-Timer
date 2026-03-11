@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo, type MutableRefObject } from 'react'
 import { useTimer } from '../hooks/useTimer'
 import type { SessionConfig } from './SessionModal'
 import type { Stage, Session, SessionImage } from '../types'
+import { useImagePrefetch } from '../hooks/useImagePrefetch'
 
 interface SessionViewProps {
   config: SessionConfig
@@ -10,6 +11,7 @@ interface SessionViewProps {
   audioChime: boolean
   onEnd: (session: Session) => void
   onBack: () => void
+  thumbnailCacheRef: MutableRefObject<Record<string, string>>
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -73,9 +75,11 @@ export default function SessionView({
   presets,
   audioChime,
   onEnd,
-  onBack
+  onBack,
+  thumbnailCacheRef
 }: SessionViewProps) {
   const [queue] = useState(() => buildSessionQueue(config, images, presets))
+  const imagePaths = useMemo(() => queue.map(q => q.imagePath), [queue])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [sessionImages, setSessionImages] = useState<SessionImage[]>([])
   const [startTime] = useState(Date.now())
@@ -84,6 +88,13 @@ export default function SessionView({
   const [isComplete, setIsComplete] = useState(false)
 
   const current = queue[currentIndex]
+  const { isLoaded } = useImagePrefetch(currentIndex, imagePaths, { ahead: 50, behind: 20 })
+  const [fullResLoaded, setFullResLoaded] = useState(false)
+
+  // Reset fullResLoaded when image changes
+  useEffect(() => {
+    setFullResLoaded(false)
+  }, [currentIndex])
 
   const recordImageTime = useCallback(() => {
     const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
@@ -227,7 +238,22 @@ export default function SessionView({
   return (
     <div className="session-view">
       <div className={`session-image ${isPaused ? 'paused' : ''}`}>
-        <img src={`file://${current.imagePath}`} alt="" />
+        <div className="session-image-wrapper">
+          {!fullResLoaded && !isLoaded(current.imagePath) && thumbnailCacheRef.current[current.imagePath] && (
+            <img
+              className="session-image-thumbnail"
+              src={`file://${thumbnailCacheRef.current[current.imagePath]}`}
+              alt=""
+            />
+          )}
+          <img
+            className="session-image-full"
+            src={`file://${current.imagePath}`}
+            alt=""
+            onLoad={() => setFullResLoaded(true)}
+            style={{ opacity: fullResLoaded || isLoaded(current.imagePath) ? 1 : 0 }}
+          />
+        </div>
         {isPaused && <div className="paused-indicator">||</div>}
       </div>
 

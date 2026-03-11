@@ -233,6 +233,7 @@ export default function App() {
         audioChime={settings.audioChime}
         onEnd={handleEndSession}
         onBack={() => setActiveSession(null)}
+        thumbnailCacheRef={thumbnailCacheRef}
       />
     )
   }
