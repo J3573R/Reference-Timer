@@ -31,6 +31,7 @@ interface CellProps {
   onPreview: (path: string) => void
   onHoverPrioritize: (path: string) => void
   isPreloading: (path: string) => boolean
+  prefetchVersion: number
 }
 
 function ImageCell({
@@ -49,6 +50,7 @@ function ImageCell({
   onPreview,
   onHoverPrioritize,
   isPreloading,
+  prefetchVersion,
 }: { columnIndex: number; rowIndex: number; style: React.CSSProperties; ariaAttributes: Record<string, unknown> } & CellProps) {
   const index = rowIndex * columnCount + columnIndex
   if (index >= images.length) {
@@ -60,9 +62,10 @@ function ImageCell({
   const isSelected = selectedImages.has(imagePath)
   const isFavorite = favoritesSet.has(imagePath)
 
-  // thumbnailCacheVersion is a passive dependency in cellProps — it triggers
-  // cell re-renders when new thumbnails arrive, but the actual data is read from the ref.
+  // thumbnailCacheVersion and prefetchVersion are passive deps in cellProps — they trigger
+  // cell re-renders when state changes, but the actual data is read from refs/callbacks.
   void thumbnailCacheVersion
+  void prefetchVersion
 
   return (
     <div style={{ ...style, padding: GAP / 2 }} {...ariaAttributes}>
@@ -136,7 +139,7 @@ export default function ImageGrid({
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadingRef = useRef(false)
 
-  const { onVisibleRangeChange, prioritize, isPreloading } = useGridPrefetch(
+  const { onVisibleRangeChange, prioritize, isPreloading, prefetchVersion } = useGridPrefetch(
     images,
     thumbnailCacheRef,
     thumbnailCacheVersion,
@@ -255,8 +258,9 @@ export default function ImageGrid({
     onPreview: handlePreview,
     onHoverPrioritize: prioritize,
     isPreloading,
+    prefetchVersion,
   // thumbnailCacheRef is a stable ref — excluded from deps intentionally
-  }), [images, columnCount, selectedImages, favoritesSet, thumbnailCacheVersion, onToggleSelect, onToggleFavorite, handlePreview, prioritize, isPreloading])
+  }), [images, columnCount, selectedImages, favoritesSet, thumbnailCacheVersion, onToggleSelect, onToggleFavorite, handlePreview, prioritize, isPreloading, prefetchVersion])
 
   if (images.length === 0) {
     return (
@@ -302,7 +306,6 @@ export default function ImageGrid({
           imagePath={previewImage}
           imageList={images}
           currentIndex={currentPreviewIndex}
-          thumbnailCacheRef={thumbnailCacheRef}
           onClose={handleClosePreview}
           onPrev={handlePrevImage}
           onNext={handleNextImage}

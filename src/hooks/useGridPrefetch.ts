@@ -10,8 +10,9 @@ export function useGridPrefetch(
   thumbnailCacheVersion: number,
   enabled: boolean
 ) {
-  // Re-render trigger for isPreloading/isPreloaded status changes
-  const [, setTick] = useState(0)
+  // Re-render trigger for isPreloading/isPreloaded status changes.
+  // prefetchVersion is exposed so consumers can invalidate memos (same pattern as thumbnailCacheVersion).
+  const [prefetchVersion, setTick] = useState(0)
   const tick = useCallback(() => setTick(v => v + 1), [])
 
   const queueRef = useRef<string[]>([])
@@ -151,5 +152,5 @@ export function useGridPrefetch(
     }
   }, [])
 
-  return { onVisibleRangeChange, prioritize, isPreloading, isPreloaded }
+  return { onVisibleRangeChange, prioritize, isPreloading, isPreloaded, prefetchVersion }
 }
