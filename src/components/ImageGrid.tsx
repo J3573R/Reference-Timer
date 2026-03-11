@@ -195,25 +195,25 @@ export default function ImageGrid({
     return () => clearTimeout(timer)
   }, [images, loadVisibleThumbnails])
 
-  // Preview navigation
+  // Preview navigation (wrap-around)
   const currentPreviewIndex = previewImage ? images.indexOf(previewImage) : -1
-  const hasPrev = currentPreviewIndex > 0
-  const hasNext = currentPreviewIndex < images.length - 1
+  const hasPrev = images.length > 1
+  const hasNext = images.length > 1
 
   const handlePreview = useCallback((path: string) => {
     setPreviewImage(path)
   }, [])
 
   const handlePrevImage = useCallback(() => {
-    if (currentPreviewIndex > 0) {
-      setPreviewImage(images[currentPreviewIndex - 1])
-    }
+    if (images.length <= 1) return
+    const prevIndex = currentPreviewIndex <= 0 ? images.length - 1 : currentPreviewIndex - 1
+    setPreviewImage(images[prevIndex])
   }, [currentPreviewIndex, images])
 
   const handleNextImage = useCallback(() => {
-    if (currentPreviewIndex < images.length - 1) {
-      setPreviewImage(images[currentPreviewIndex + 1])
-    }
+    if (images.length <= 1) return
+    const nextIndex = currentPreviewIndex >= images.length - 1 ? 0 : currentPreviewIndex + 1
+    setPreviewImage(images[nextIndex])
   }, [currentPreviewIndex, images])
 
   const handleClosePreview = useCallback(() => {
