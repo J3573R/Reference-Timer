@@ -273,6 +273,25 @@ body {
   100% { background-position: -200% 0; }
 }
 
+/* Grid preload spinner — shown while full-res is being decoded */
+.grid-preload-spinner {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: grid-preload-spin 0.8s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes grid-preload-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Selection checkbox */
 .image-card-checkbox {
   position: absolute;
