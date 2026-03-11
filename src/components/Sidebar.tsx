@@ -51,63 +51,66 @@ function FolderTreeItem({
     }
   }, [defaultExpanded, hasLoadedChildren, node.path])
 
-  const handleToggleExpand = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleRowClick = useCallback(async () => {
+    onSelect(node.path)
 
-    if (!hasLoadedChildren) {
-      // Lazy load subfolders
+    if (!hasKnownChildren && !hasLoadedChildren) {
+      // First click on unloaded folder: select + load + expand
       setIsLoading(true)
       try {
         const subfolders = await window.electronAPI.fs.getSubfolders(node.path)
         setChildren(subfolders)
         setHasLoadedChildren(true)
-        setIsExpanded(true)
+        if (subfolders.length > 0) {
+          setIsExpanded(true)
+        }
       } catch (err) {
         console.error('Error loading subfolders:', err)
       }
       setIsLoading(false)
-    } else {
-      setIsExpanded(!isExpanded)
+    } else if (isSelected && hasKnownChildren) {
+      // Already selected: toggle expand/collapse
+      setIsExpanded(prev => !prev)
+    } else if (!isSelected && hasKnownChildren && !isExpanded) {
+      // Not selected, has children, not expanded: expand
+      setIsExpanded(true)
     }
-  }, [hasLoadedChildren, isExpanded, node.path])
+    // Not selected but already expanded: just select, keep expanded
+  }, [onSelect, node.path, hasKnownChildren, hasLoadedChildren, isSelected, isExpanded])
 
-  const handleSelect = useCallback(() => {
-    onSelect(node.path)
-  }, [onSelect, node.path])
-
-  // Render expand arrow for folders - only show if we know there are children
-  const renderExpandIcon = () => {
-    if (!node.exists) return <span style={{ width: 16, textAlign: 'center', fontSize: 12, opacity: 0.5 }}>!</span>
-    if (isLoading) return <span style={{ width: 16, textAlign: 'center', fontSize: 10, opacity: 0.4 }}>...</span>
+  const renderChevron = () => {
+    if (!node.exists) return <span style={{ width: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, opacity: 0.5 }}>!</span>
+    if (isLoading) return <span style={{ width: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, opacity: 0.4 }}>...</span>
     if (hasKnownChildren) {
-      // Only show arrow if we know there are children
       return (
-        <span
-          style={{ width: 16, textAlign: 'center', cursor: 'pointer', fontSize: 10, opacity: 0.5 }}
-          onClick={handleToggleExpand}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          className={`folder-chevron ${isExpanded ? 'expanded' : ''}`}
         >
-          {isExpanded ? '▾' : '▸'}
-        </span>
+          <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       )
     }
-    // No children or haven't loaded yet - show empty space for alignment
-    return <span style={{ width: 16 }}></span>
+    return <span style={{ width: 14 }}></span>
   }
 
   return (
     <div>
       <div
         className={`folder-item ${isSelected ? 'selected' : ''} ${!node.exists ? 'missing' : ''}`}
-        onClick={handleSelect}
+        onClick={handleRowClick}
         style={{ paddingLeft: 8 + depth * 16 }}
       >
-        {renderExpandIcon()}
+        {renderChevron()}
         <svg
-          width="16"
-          height="16"
+          width="18"
+          height="18"
           viewBox="0 0 16 16"
           fill="none"
-          style={{ opacity: 0.6, flexShrink: 0 }}
+          style={{ opacity: 0.85, flexShrink: 0 }}
         >
           {isExpanded ? (
             <path d="M1.5 3.5h13c.28 0 .5.22.5.5v8c0 .28-.22.5-.5.5h-13c-.28 0-.5-.22-.5-.5V4c0-.28.22-.5.5-.5z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
