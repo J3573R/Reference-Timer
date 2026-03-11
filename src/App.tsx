@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import TopBar from './components/TopBar'
 import SettingsModal from './components/SettingsModal'
 import Sidebar from './components/Sidebar'
@@ -27,7 +27,8 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [thumbnailProgress, setThumbnailProgress] = useState<{ current: number; total: number } | null>(null)
-  const [thumbnailCache, setThumbnailCache] = useState<Record<string, string>>({})
+  const thumbnailCacheRef = useRef<Record<string, string>>({})
+  const [thumbnailCacheVersion, setThumbnailCacheVersion] = useState(0)
 
   // Load initial data
   useEffect(() => {
@@ -37,12 +38,17 @@ export default function App() {
       window.electronAPI.store.get('progressivePresets'),
       window.electronAPI.store.get('settings'),
       window.electronAPI.store.get('sessionHistory'),
-    ]).then(([folders, favs, prsts, sttngs, history]) => {
+      window.electronAPI.store.get('thumbnailCache'),
+    ]).then(([folders, favs, prsts, sttngs, history, cachedThumbnails]) => {
       setReferenceFolders(folders)
       setFavorites(favs)
       setPresets(prsts)
       setSettings(sttngs)
       setSessionHistory(history)
+      if (cachedThumbnails) {
+        thumbnailCacheRef.current = cachedThumbnails
+        setThumbnailCacheVersion(v => v + 1)
+      }
     })
   }, [])
 
@@ -61,7 +67,6 @@ export default function App() {
   useEffect(() => {
     if (referenceFolders.length === 0) return
 
-    // Set up progress listener
     window.electronAPI.fs.onThumbnailProgress((progress) => {
       if (progress.total === 0) {
         setThumbnailProgress(null)
@@ -69,16 +74,20 @@ export default function App() {
         setThumbnailProgress(progress)
       }
       if (progress.current >= progress.total) {
-        // Generation complete
         setTimeout(() => setThumbnailProgress(null), 2000)
       }
     })
 
-    // Start background generation
+    window.electronAPI.fs.onThumbnailGenerated(({ imagePath, thumbnailPath }) => {
+      thumbnailCacheRef.current[imagePath] = thumbnailPath
+      // Don't bump version for every background thumbnail — batch via persist
+    })
+
     window.electronAPI.fs.generateThumbnailsInBackground(referenceFolders)
 
     return () => {
       window.electronAPI.fs.removeThumbnailProgressListener()
+      window.electronAPI.fs.removeThumbnailGeneratedListener()
     }
   }, [referenceFolders])
 
@@ -200,6 +209,21 @@ export default function App() {
     })
   }, [])
 
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const persistThumbnailCache = useCallback(() => {
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      window.electronAPI.store.set('thumbnailCache', thumbnailCacheRef.current)
+    }, 2000)
+  }, [])
+
+  const handleThumbnailsLoaded = useCallback((newThumbnails: Record<string, string>) => {
+    Object.assign(thumbnailCacheRef.current, newThumbnails)
+    setThumbnailCacheVersion(v => v + 1)
+    persistThumbnailCache()
+  }, [persistThumbnailCache])
+
   if (activeSession) {
     return (
       <SessionView
@@ -239,10 +263,9 @@ export default function App() {
             onSelectAll={handleSelectAll}
             onClearSelection={handleClearSelection}
             onToggleFavorite={handleToggleFavorite}
-            thumbnailCache={thumbnailCache}
-            onThumbnailsLoaded={(newThumbnails) => {
-              setThumbnailCache(prev => ({ ...prev, ...newThumbnails }))
-            }}
+            thumbnailCacheRef={thumbnailCacheRef}
+            thumbnailCacheVersion={thumbnailCacheVersion}
+            onThumbnailsLoaded={handleThumbnailsLoaded}
           />
         ) : (
           <div className="image-grid-container">
