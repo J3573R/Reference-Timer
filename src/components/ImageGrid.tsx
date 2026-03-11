@@ -30,7 +30,7 @@ interface CellProps {
   onToggleFavorite: (path: string) => void
   onPreview: (path: string) => void
   onHoverPrioritize: (path: string) => void
-  isPreloading: (path: string) => boolean
+  isPreloaded: (path: string) => boolean
   prefetchVersion: number
 }
 
@@ -49,7 +49,7 @@ function ImageCell({
   onToggleFavorite,
   onPreview,
   onHoverPrioritize,
-  isPreloading,
+  isPreloaded,
   prefetchVersion,
 }: { columnIndex: number; rowIndex: number; style: React.CSSProperties; ariaAttributes: Record<string, unknown> } & CellProps) {
   const index = rowIndex * columnCount + columnIndex
@@ -80,12 +80,10 @@ function ImageCell({
             alt=""
             loading="lazy"
             decoding="async"
+            style={{ opacity: isPreloaded(imagePath) ? 1 : 0.5, transition: 'opacity 0.3s ease' }}
           />
         ) : (
           <div className="image-card-placeholder" />
-        )}
-        {isPreloading(imagePath) && (
-          <div className="grid-preload-spinner" />
         )}
         <div
           className={`image-card-checkbox ${isSelected ? 'checked' : ''}`}
@@ -139,7 +137,7 @@ export default function ImageGrid({
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadingRef = useRef(false)
 
-  const { onVisibleRangeChange, prioritize, isPreloading, prefetchVersion } = useGridPrefetch(
+  const { onVisibleRangeChange, prioritize, isPreloaded, prefetchVersion } = useGridPrefetch(
     images,
     thumbnailCacheRef,
     thumbnailCacheVersion,
@@ -257,10 +255,10 @@ export default function ImageGrid({
     onToggleFavorite,
     onPreview: handlePreview,
     onHoverPrioritize: prioritize,
-    isPreloading,
+    isPreloaded,
     prefetchVersion,
   // thumbnailCacheRef is a stable ref — excluded from deps intentionally
-  }), [images, columnCount, selectedImages, favoritesSet, thumbnailCacheVersion, onToggleSelect, onToggleFavorite, handlePreview, prioritize, isPreloading, prefetchVersion])
+  }), [images, columnCount, selectedImages, favoritesSet, thumbnailCacheVersion, onToggleSelect, onToggleFavorite, handlePreview, prioritize, isPreloaded, prefetchVersion])
 
   if (images.length === 0) {
     return (
