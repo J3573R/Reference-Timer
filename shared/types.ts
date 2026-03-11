@@ -33,4 +33,5 @@ export interface AppData {
   progressivePresets: ProgressivePreset[]
   sessionHistory: Session[]
   settings: Settings
+  thumbnailCache: Record<string, string>
 }

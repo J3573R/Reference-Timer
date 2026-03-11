@@ -25,6 +25,7 @@ const defaults: AppData = {
   settings: {
     audioChime: true,
   },
+  thumbnailCache: {},
 }
 
 type StoreType = {
