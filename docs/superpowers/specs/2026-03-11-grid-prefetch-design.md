@@ -50,7 +50,9 @@ function useGridPrefetch(
 
 **Thumbnails-first gate:**
 - Before starting any full-res loads, checks that every image in the current visible range has an entry in `thumbnailCacheRef.current`.
-- If any visible image lacks a thumbnail, the hook idles. When `thumbnailCacheVersion` changes (new thumbnails arrive), the hook re-evaluates the gate.
+- If any visible image lacks a thumbnail, the hook idles. When `thumbnailCacheVersion` changes, the hook re-evaluates the gate.
+- Wake-up mechanism: ImageGrid's existing `loadVisibleThumbnails` calls `getThumbnails` for visible images, which calls `handleThumbnailsLoaded` on completion, which bumps `thumbnailCacheVersion`. This is the correct timing — the gate opens after thumbnails for the visible area have been fetched and cached.
+- Note: `onThumbnailGenerated` (background generation) writes to `thumbnailCacheRef` but does not bump the version. This is fine — the gate relies on the version bump from the visibility-aware `getThumbnails` path, which is what actually loads the thumbnails the user is about to see.
 - This prevents full-res decode work from competing with thumbnail loading for disk I/O.
 
 **Scroll handling (debounced):**
@@ -66,6 +68,9 @@ function useGridPrefetch(
 **Folder switch:**
 - When the `images` array reference changes (user opens a different folder), abort all in-flight loads (`src = ''`), clear the queue, and clear the loaded/loading sets. Start fresh. Note: `images` comes from React state (`currentImages` in App.tsx), which only produces a new reference on actual folder changes — not on unrelated re-renders.
 
+**Empty images:**
+- The hook is always called (React rules of hooks) and behaves as a no-op when `images` is empty — no queue processing, no loads started.
+
 **Cleanup:**
 - On unmount, set `src = ''` on all in-flight `Image` objects before dereferencing.
 
@@ -77,6 +82,7 @@ function useGridPrefetch(
 - ImageGrid already has an `onCellsRendered` handler that receives `{ columnStartIndex, columnStopIndex, rowStartIndex, rowStopIndex }` from react-window's Grid component, and stores the range in `visibleRangeRef`.
 - Compute image index range using the existing pattern: `startIndex = rowStartIndex * columnCount + columnStartIndex`, `endIndex = Math.min(rowStopIndex * columnCount + columnStopIndex + 1, images.length)`.
 - Pass to `onVisibleRangeChange` from within the existing `handleCellsRendered` callback.
+- Assumption: columns always span the full grid width (`columnStartIndex = 0`, `columnStopIndex = columnCount - 1`). This matches the existing thumbnail loading code and the fixed-width grid layout.
 
 **Hover priority:**
 - Add `onMouseEnter` on each thumbnail cell, calling `prioritize(imagePath)`.
@@ -98,9 +104,10 @@ function useGridPrefetch(
 
 **New behavior:**
 - Remove the startup `generateThumbnailsInBackground` call.
-- Trigger thumbnail generation when the selected folder changes — pass the selected folder path (not image paths) to `generateThumbnailsInBackground([selectedPath])`, since the API accepts folder paths and discovers images internally.
+- Add a new `useEffect` in `App.tsx` that watches `selectedPath`. When it changes, call `generateThumbnailsInBackground([selectedPath])`. This is per-subfolder — if the user selects a leaf subfolder, only that subfolder's images get thumbnails generated. This is intentional on-demand behavior.
 - Edge case: when `selectedPath` is a virtual collection (e.g., `__favorites__`), skip the generation call — favorites reference images from already-opened folders whose thumbnails were generated on first visit.
-- `thumbnailCacheRef` still accumulates entries across folders within the session. Switching back to a previously opened folder uses cached entries and doesn't re-generate.
+- **Listener lifecycle:** The `onThumbnailGenerated` and `onThumbnailProgress` IPC listener setup stays in a separate `useEffect` (keyed on mount/unmount only), decoupled from the generation trigger. This avoids teardown/re-setup gaps when switching folders that could cause missed events.
+- `thumbnailCacheRef` still accumulates entries across folders within the session. Switching back to a previously opened folder won't re-generate — the main process checks if thumbnail files already exist on disk and skips them.
 
 ### 4. Thumbnail Placeholder CSS Fix — Not Needed
 
