@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState, useCallback, useRef, type MutableRefObject } from 'react'
 import { Grid } from 'react-window'
 import ImagePreview from './ImagePreview'
+import { useGridPrefetch } from '../hooks/useGridPrefetch'
 
 interface ImageGridProps {
   images: string[]
@@ -28,6 +29,8 @@ interface CellProps {
   onToggleSelect: (path: string) => void
   onToggleFavorite: (path: string) => void
   onPreview: (path: string) => void
+  onHoverPrioritize: (path: string) => void
+  isPreloading: (path: string) => boolean
 }
 
 function ImageCell({
@@ -44,6 +47,8 @@ function ImageCell({
   onToggleSelect,
   onToggleFavorite,
   onPreview,
+  onHoverPrioritize,
+  isPreloading,
 }: { columnIndex: number; rowIndex: number; style: React.CSSProperties; ariaAttributes: Record<string, unknown> } & CellProps) {
   const index = rowIndex * columnCount + columnIndex
   if (index >= images.length) {
@@ -64,6 +69,7 @@ function ImageCell({
       <div
         className={`image-card ${isSelected ? 'selected' : ''}`}
         onClick={() => onPreview(imagePath)}
+        onMouseEnter={() => onHoverPrioritize(imagePath)}
       >
         {thumbnailPath ? (
           <img
@@ -74,6 +80,9 @@ function ImageCell({
           />
         ) : (
           <div className="image-card-placeholder" />
+        )}
+        {isPreloading(imagePath) && (
+          <div className="grid-preload-spinner" />
         )}
         <div
           className={`image-card-checkbox ${isSelected ? 'checked' : ''}`}
@@ -126,6 +135,13 @@ export default function ImageGrid({
   const visibleRangeRef = useRef<{ rowStart: number; rowStop: number; colStart: number; colStop: number } | null>(null)
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadingRef = useRef(false)
+
+  const { onVisibleRangeChange, prioritize, isPreloading } = useGridPrefetch(
+    images,
+    thumbnailCacheRef,
+    thumbnailCacheVersion,
+    previewImage === null
+  )
 
   const favoritesSet = useMemo(() => new Set(favorites), [favorites])
 
@@ -186,7 +202,13 @@ export default function ImageGrid({
     // Debounce: load thumbnails 100ms after scroll stops
     if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     loadTimerRef.current = setTimeout(loadVisibleThumbnails, 100)
-  }, [loadVisibleThumbnails])
+
+    // Feed visible range to grid prefetch hook
+    // Note: assumes columns always span full width (columnStartIndex=0, columnStopIndex=columnCount-1)
+    const startIdx = visibleCells.rowStartIndex * columnCount + visibleCells.columnStartIndex
+    const endIdx = Math.min(visibleCells.rowStopIndex * columnCount + visibleCells.columnStopIndex + 1, images.length)
+    onVisibleRangeChange(startIdx, endIdx)
+  }, [loadVisibleThumbnails, onVisibleRangeChange, columnCount, images.length])
 
   // Load visible thumbnails when images change (folder switch)
   useEffect(() => {
@@ -231,8 +253,10 @@ export default function ImageGrid({
     onToggleSelect,
     onToggleFavorite,
     onPreview: handlePreview,
+    onHoverPrioritize: prioritize,
+    isPreloading,
   // thumbnailCacheRef is a stable ref — excluded from deps intentionally
-  }), [images, columnCount, selectedImages, favoritesSet, thumbnailCacheVersion, onToggleSelect, onToggleFavorite, handlePreview])
+  }), [images, columnCount, selectedImages, favoritesSet, thumbnailCacheVersion, onToggleSelect, onToggleFavorite, handlePreview, prioritize, isPreloading])
 
   if (images.length === 0) {
     return (
