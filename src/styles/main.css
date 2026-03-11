@@ -990,13 +990,6 @@ body {
   overflow: hidden;
 }
 
-.image-preview-container img {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
-  user-select: none;
-}
-
 /* Thumbnail placeholder for preview images */
 .preview-image-wrapper {
   position: relative;

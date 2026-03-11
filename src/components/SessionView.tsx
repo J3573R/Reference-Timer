@@ -88,7 +88,7 @@ export default function SessionView({
   const [isComplete, setIsComplete] = useState(false)
 
   const current = queue[currentIndex]
-  const { isLoaded } = useImagePrefetch(currentIndex, imagePaths, { ahead: 50, behind: 20 })
+  const { isLoaded } = useImagePrefetch(currentIndex, imagePaths)
   const [fullResLoaded, setFullResLoaded] = useState(false)
 
   // Reset fullResLoaded when image changes

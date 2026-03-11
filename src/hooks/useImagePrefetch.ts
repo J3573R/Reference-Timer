@@ -1,24 +1,23 @@
 import { useRef, useCallback, useEffect } from 'react'
 
-interface PrefetchOptions {
-  ahead: number
-  behind: number
-}
+const PREFETCH_AHEAD = 50
+const PREFETCH_BEHIND = 20
 
 export function useImagePrefetch(
   currentIndex: number,
   imageList: string[],
-  options: PrefetchOptions
+  options: { ahead: number; behind: number } = { ahead: PREFETCH_AHEAD, behind: PREFETCH_BEHIND }
 ) {
   const loadedSet = useRef(new Set<string>())
   const imageRefs = useRef(new Map<string, HTMLImageElement>())
   const loadingSet = useRef(new Set<string>())
+  const { ahead, behind } = options
 
   // Build nearest-first ordered list of paths within the window
   const getWindowPaths = useCallback((index: number, list: string[]) => {
     const paths: string[] = []
-    const maxAhead = Math.min(options.ahead, list.length - 1 - index)
-    const maxBehind = Math.min(options.behind, index)
+    const maxAhead = Math.min(ahead, list.length - 1 - index)
+    const maxBehind = Math.min(behind, index)
     const maxDist = Math.max(maxAhead, maxBehind)
 
     for (let d = 1; d <= maxDist; d++) {
@@ -26,7 +25,7 @@ export function useImagePrefetch(
       if (d <= maxBehind) paths.push(list[index - d])
     }
     return paths
-  }, [options.ahead, options.behind])
+  }, [ahead, behind])
 
   useEffect(() => {
     const windowPaths = getWindowPaths(currentIndex, imageList)
@@ -37,16 +36,20 @@ export function useImagePrefetch(
     }
 
     // Clean up images outside the window
-    for (const [path, img] of imageRefs.current) {
-      if (!windowSet.has(path)) {
-        img.src = ''
-        imageRefs.current.delete(path)
-        loadedSet.current.delete(path)
-        loadingSet.current.delete(path)
-      }
+    // Safe: ES6 Map handles deletions during for...of iteration
+    const toEvict: string[] = []
+    for (const [path] of imageRefs.current) {
+      if (!windowSet.has(path)) toEvict.push(path)
+    }
+    for (const path of toEvict) {
+      const img = imageRefs.current.get(path)
+      if (img) img.src = ''
+      imageRefs.current.delete(path)
+      loadedSet.current.delete(path)
+      loadingSet.current.delete(path)
     }
 
-    // Load images in nearest-first order, batched via microtasks
+    // Load images in nearest-first order, yielding between loads
     let cancelled = false
     const loadBatch = async () => {
       for (const path of windowPaths) {
@@ -80,6 +83,9 @@ export function useImagePrefetch(
     }
   }, [currentIndex, imageList, getWindowPaths])
 
+  // Note: isLoaded reads from a ref and does not cause re-renders.
+  // It reflects correct state at render time (e.g., when currentIndex changes).
+  // The actual visual swap is driven by the <img> onLoad handler in consumers.
   const isLoaded = useCallback((path: string) => {
     return loadedSet.current.has(path)
   }, [])

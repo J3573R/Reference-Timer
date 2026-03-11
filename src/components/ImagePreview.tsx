@@ -31,7 +31,7 @@ export default function ImagePreview({
   const containerRef = useRef<HTMLDivElement>(null)
   const [fullResLoaded, setFullResLoaded] = useState(false)
 
-  const { isLoaded } = useImagePrefetch(currentIndex, imageList, { ahead: 50, behind: 20 })
+  const { isLoaded } = useImagePrefetch(currentIndex, imageList)
 
   // Reset zoom, position, and load state when image changes
   useEffect(() => {
