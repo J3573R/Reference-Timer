@@ -276,6 +276,9 @@ export default function ImageGrid({
       {previewImage && (
         <ImagePreview
           imagePath={previewImage}
+          imageList={images}
+          currentIndex={currentPreviewIndex}
+          thumbnailCacheRef={thumbnailCacheRef}
           onClose={handleClosePreview}
           onPrev={handlePrevImage}
           onNext={handleNextImage}
