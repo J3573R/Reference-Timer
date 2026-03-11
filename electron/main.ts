@@ -64,13 +64,16 @@ ipcMain.handle('fs:fileExists', (_event, filePath: string) => {
 
 ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[], priority: 'high' | 'low' = 'high') => {
   const results = await thumbnailQueue.enqueueBatch(imagePaths, priority)
-  // Feed results into persistent cache
+  // Filter out fallback entries (where thumbnail generation failed and returned the original path)
+  // and feed successful results into persistent cache
+  const filtered: Record<string, string> = {}
   for (const [imgPath, thumbPath] of Object.entries(results)) {
     if (thumbPath !== imgPath) {
+      filtered[imgPath] = thumbPath
       updatePersistentCache(imgPath, thumbPath)
     }
   }
-  return results
+  return filtered
 })
 
 ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: string[]) => {
