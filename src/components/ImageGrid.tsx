@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useState, useCallback, useRef, type MutableRefObject } from 'react'
 import { Grid } from 'react-window'
 import ImagePreview from './ImagePreview'
-import { useGridPrefetch } from '../hooks/useGridPrefetch'
+import { useHoverPrefetch } from '../hooks/useHoverPrefetch'
 
 interface ImageGridProps {
   images: string[]
@@ -29,9 +29,8 @@ interface CellProps {
   onToggleSelect: (path: string) => void
   onToggleFavorite: (path: string) => void
   onPreview: (path: string) => void
-  onHoverPrioritize: (path: string) => void
-  isPreloaded: (path: string) => boolean
-  prefetchVersion: number
+  onHover: (path: string) => void
+  onLeave: () => void
 }
 
 function ImageCell({
@@ -48,9 +47,8 @@ function ImageCell({
   onToggleSelect,
   onToggleFavorite,
   onPreview,
-  onHoverPrioritize,
-  isPreloaded,
-  prefetchVersion,
+  onHover,
+  onLeave,
 }: { columnIndex: number; rowIndex: number; style: React.CSSProperties; ariaAttributes: Record<string, unknown> } & CellProps) {
   const index = rowIndex * columnCount + columnIndex
   if (index >= images.length) {
@@ -62,17 +60,17 @@ function ImageCell({
   const isSelected = selectedImages.has(imagePath)
   const isFavorite = favoritesSet.has(imagePath)
 
-  // thumbnailCacheVersion and prefetchVersion are passive deps in cellProps — they trigger
-  // cell re-renders when state changes, but the actual data is read from refs/callbacks.
+  // thumbnailCacheVersion is a passive dep in cellProps — triggers
+  // cell re-renders when state changes, but the actual data is read from the ref.
   void thumbnailCacheVersion
-  void prefetchVersion
 
   return (
     <div style={{ ...style, padding: GAP / 2 }} {...ariaAttributes}>
       <div
         className={`image-card ${isSelected ? 'selected' : ''}`}
         onClick={() => onPreview(imagePath)}
-        onMouseEnter={() => onHoverPrioritize(imagePath)}
+        onMouseEnter={() => onHover(imagePath)}
+        onMouseLeave={onLeave}
       >
         {thumbnailPath ? (
           <img
@@ -80,7 +78,6 @@ function ImageCell({
             alt=""
             loading="lazy"
             decoding="async"
-            style={{ opacity: isPreloaded(imagePath) ? 1 : 0.5, transition: 'opacity 0.3s ease' }}
           />
         ) : (
           <div className="image-card-placeholder" />
@@ -137,12 +134,7 @@ export default function ImageGrid({
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadingRef = useRef(false)
 
-  const { onVisibleRangeChange, prioritize, isPreloaded, prefetchVersion } = useGridPrefetch(
-    images,
-    thumbnailCacheRef,
-    thumbnailCacheVersion,
-    previewImage === null
-  )
+  const { onHover, onLeave } = useHoverPrefetch(images, thumbnailCacheRef)
 
   const favoritesSet = useMemo(() => new Set(favorites), [favorites])
 
@@ -204,12 +196,7 @@ export default function ImageGrid({
     if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     loadTimerRef.current = setTimeout(loadVisibleThumbnails, 100)
 
-    // Feed visible range to grid prefetch hook
-    // Note: assumes columns always span full width (columnStartIndex=0, columnStopIndex=columnCount-1)
-    const startIdx = visibleCells.rowStartIndex * columnCount + visibleCells.columnStartIndex
-    const endIdx = Math.min(visibleCells.rowStopIndex * columnCount + visibleCells.columnStopIndex + 1, images.length)
-    onVisibleRangeChange(startIdx, endIdx)
-  }, [loadVisibleThumbnails, onVisibleRangeChange, columnCount, images.length])
+  }, [loadVisibleThumbnails])
 
   // Load visible thumbnails when images change (folder switch)
   useEffect(() => {
@@ -254,11 +241,10 @@ export default function ImageGrid({
     onToggleSelect,
     onToggleFavorite,
     onPreview: handlePreview,
-    onHoverPrioritize: prioritize,
-    isPreloaded,
-    prefetchVersion,
+    onHover,
+    onLeave,
   // thumbnailCacheRef is a stable ref — excluded from deps intentionally
-  }), [images, columnCount, selectedImages, favoritesSet, thumbnailCacheVersion, onToggleSelect, onToggleFavorite, handlePreview, prioritize, isPreloaded, prefetchVersion])
+  }), [images, columnCount, selectedImages, favoritesSet, thumbnailCacheVersion, onToggleSelect, onToggleFavorite, handlePreview, onHover, onLeave])
 
   if (images.length === 0) {
     return (
