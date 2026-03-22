@@ -16,6 +16,9 @@ export class ThumbnailQueue {
   private processing = false
   // Track in-flight and completed items for deduplication
   private pending = new Map<string, Promise<string>>()
+  private paused = false
+  private resumeTimer: ReturnType<typeof setTimeout> | null = null
+  private onBackgroundResumed: (() => void) | null = null
 
   constructor(maxConcurrency = 6) {
     this.maxConcurrency = maxConcurrency
@@ -61,6 +64,8 @@ export class ThumbnailQueue {
     while (this.activeCount < this.maxConcurrency && this.queue.length > 0) {
       // Sort: high priority items first (stable sort preserves insertion order within same priority)
       this.sortQueue()
+      // When paused, only process high-priority items
+      if (this.paused && this.queue[0].priority === 'low') break
       const item = this.queue.shift()!
       this.activeCount++
       this.processItem(item)
@@ -94,6 +99,51 @@ export class ThumbnailQueue {
       this.pending.delete(item.imagePath)
       this.processNext()
     }
+  }
+
+  pause(): void {
+    this.paused = true
+    if (this.resumeTimer) {
+      clearTimeout(this.resumeTimer)
+      this.resumeTimer = null
+    }
+  }
+
+  resume(): void {
+    this.paused = false
+    this.processNext()
+    this.onBackgroundResumed?.()
+  }
+
+  discardBackground(): void {
+    const kept: QueueItem[] = []
+    for (const item of this.queue) {
+      if (item.priority === 'low') {
+        // Resolve with original path (fallback pattern) to avoid orphaned promises
+        item.resolve(item.imagePath)
+        this.pending.delete(item.imagePath)
+      } else {
+        kept.push(item)
+      }
+    }
+    this.queue = kept
+  }
+
+  enterForeground(): void {
+    this.pause()
+    this.discardBackground()
+  }
+
+  resumeBackground(): void {
+    if (this.resumeTimer) clearTimeout(this.resumeTimer)
+    this.resumeTimer = setTimeout(() => {
+      this.resumeTimer = null
+      this.resume()
+    }, 500)
+  }
+
+  setOnBackgroundResumed(callback: (() => void) | null): void {
+    this.onBackgroundResumed = callback
   }
 
   clear(): void {
