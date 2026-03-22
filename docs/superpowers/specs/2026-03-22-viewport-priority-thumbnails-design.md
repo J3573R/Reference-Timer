@@ -20,13 +20,20 @@ When importing a large image folder (40GB+), the app floods the thumbnail queue 
 
 ## Priority Hierarchy
 
+There are two independent systems: the **ThumbnailQueue** (Sharp, main process) and **renderer image loading** (`new Image()`, renderer process). They can't share a queue, but they compete for disk I/O. The priority hierarchy is enforced through queue modes and pause/resume signals:
+
+**ThumbnailQueue priorities (main process):**
 | Priority | What | When |
 |----------|------|------|
-| 1 (highest) | Visible grid thumbnails | User is browsing the grid |
-| 2 | Hover full-res prefetch | Mouse enters a grid cell |
-| 3 | Full-res image being viewed | User clicked (fallback if hover didn't finish) |
-| 4 | Adjacent prefetch (next/prev) | In session or preview mode |
-| 5 (lowest) | Background thumbnail generation | Idle — nothing above is active |
+| Foreground | Visible grid thumbnails | User is browsing the grid |
+| Background | Cache warming for all images | Idle — no foreground or renderer I/O work |
+
+**Renderer I/O (pauses background generation via IPC signals):**
+| Priority | What | When |
+|----------|------|------|
+| 1 | Hover full-res prefetch | Mouse enters a grid cell |
+| 2 | Full-res image being viewed | User clicked (fallback if hover didn't finish) |
+| 3 | Adjacent prefetch (next/prev) | In session or preview mode |
 
 Background thumbnail generation yields to all other work.
 
@@ -42,7 +49,8 @@ Add pause/resume and foreground/background mode switching:
 - **`resume()`** — resumes background dequeueing.
 - **Foreground mode** — activated when viewport thumbnail requests arrive. Pauses background queue. All available concurrency slots serve viewport requests.
 - **Background mode** — activated after all viewport requests complete and a 500ms quiet period passes. Background queue resumes.
-- When entering foreground mode, **clear queued (not in-flight) background items** so they don't occupy slots after viewport work finishes. The lazy batch feeder (Section 3) will re-enqueue them.
+- When entering foreground mode, **discard queued (not in-flight) background items** silently — do not reject their promises or fire progress events. The lazy batch feeder (Section 3) will re-enqueue them when background mode resumes. Introduce a `discardBackground()` method separate from `clear()` that removes low-priority items from the queue and cleans up their dedup entries without triggering rejection callbacks. This avoids corrupting the progress counter or spamming `thumbnail-progress` events.
+- **Deduplication note:** Items that are in-flight when `discardBackground()` runs remain in the `pending` Map. If the batch feeder re-enqueues the same image later, the dedup check returns the existing in-flight promise — correct behavior, no special handling needed.
 
 Sharp operations are a fraction of a second per thumbnail. Letting up to 6 in-flight jobs drain before serving viewport requests is acceptable — no cancellation needed.
 
@@ -73,8 +81,9 @@ Replace flood-the-queue approach with lazy batching:
 - **Folder-order processing:** Images are enqueued in the same sort order as the grid UI. This means the top of the grid gets warm first — scrolling down after waiting reveals pre-generated thumbnails in order.
 - **Batch chaining:** When a batch completes, the next 50 are enqueued. A simple index tracks position in the image list.
 - **Pause-aware:** When the queue switches to foreground mode, the batch feeder stops enqueueing. When background mode resumes, it picks up where it left off.
+- **Folder switch cancellation:** Each call to `generateThumbnailsInBackground` creates a generation ID (incrementing counter). When a new call arrives (user switches folders), the previous generation ID is invalidated. The batch chain checks the generation ID before enqueueing the next batch — if it's stale, it stops. `discardBackground()` is called to clear any queued items from the old folder. This prevents stale images from the previous folder being generated after a switch.
 - **Total count known upfront:** The folder scan still runs to determine total image count. Only enqueueing is lazy.
-- **Progress reporting unchanged:** `thumbnail-progress` and `thumbnail-generated` IPC events still fire. TopBar badge still works.
+- **Progress reporting:** `thumbnail-progress` and `thumbnail-generated` IPC events still fire. TopBar badge still works. Progress counters reset on folder switch (new generation ID = new counters).
 
 ### 4. Cross-System I/O Coordination
 
@@ -95,6 +104,8 @@ Full-res loading (renderer, `new Image()`) and thumbnail generation (main proces
 **`preload.ts`:**
 - Expose the two new IPC methods on `window.electronAPI.fs`
 
+**Note on ImagePreview:** `useImagePrefetch` is used both in `SessionView` and `ImagePreview`. The ImagePreview renders inside the grid component (it does not unmount the grid). This means when a preview is open, both viewport thumbnail loading and the preview's full-res prefetch may run concurrently. This is acceptable — background generation is paused by the prefetch hook, and viewport thumbnails are already loaded for visible cells by the time the user clicks one.
+
 **What we are NOT doing:**
 - No unified cross-process queue. Renderer image loading and Sharp generation are fundamentally different systems.
 - No pausing hover prefetch for viewport thumbnails. Hover only fires when a thumbnail is already visible — it's complementary, not competing.
@@ -110,6 +121,7 @@ Full-res loading (renderer, `new Image()`) and thumbnail generation (main proces
 | `src/components/ImageGrid.tsx` | Order uncached images in visual order, signal foreground mode |
 | `src/hooks/useHoverPrefetch.ts` | Pause/resume background on hover start/end |
 | `src/hooks/useImagePrefetch.ts` | Pause/resume background on mount/unmount |
+| `src/electron.d.ts` | Add types for `pauseBackgroundThumbnails` / `resumeBackgroundThumbnails` to `fs` interface |
 
 ## What Stays Unchanged
 
