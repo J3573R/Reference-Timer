@@ -96,7 +96,7 @@ ipcMain.handle('fs:pauseBackgroundThumbnails', async () => {
 
 ipcMain.handle('fs:resumeBackgroundThumbnails', async () => {
   externalPauseCount = Math.max(0, externalPauseCount - 1)
-  if (externalPauseCount === 0) {
+  if (externalPauseCount === 0 && foregroundRequestCount === 0) {
     thumbnailQueue.resumeBackground()
   }
 })
