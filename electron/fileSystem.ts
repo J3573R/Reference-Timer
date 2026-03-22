@@ -23,6 +23,8 @@ function getThumbnailPath(imagePath: string): string {
 }
 
 export function isImageFile(filePath: string): boolean {
+  const basename = path.basename(filePath)
+  if (basename.startsWith('.')) return false
   const ext = path.extname(filePath).toLowerCase()
   return SUPPORTED_EXTENSIONS.includes(ext)
 }

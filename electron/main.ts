@@ -78,15 +78,15 @@ ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[], priority
       thumbnailQueue.resumeBackground()
     }
   }
-  // Filter out fallback entries and feed successful results into persistent cache
-  const filtered: Record<string, string> = {}
+  // Feed successful results into persistent cache.
+  // Return ALL results (including fallbacks where thumbPath === imgPath) so the renderer
+  // caches failed attempts and doesn't retry forever for unsupported formats.
   for (const [imgPath, thumbPath] of Object.entries(results)) {
     if (thumbPath !== imgPath) {
-      filtered[imgPath] = thumbPath
       updatePersistentCache(imgPath, thumbPath)
     }
   }
-  return filtered
+  return results
 })
 
 ipcMain.handle('fs:pauseBackgroundThumbnails', async () => {
