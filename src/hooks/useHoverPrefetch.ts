@@ -12,6 +12,7 @@ export function useHoverPrefetch(
     if (loadingRef.current) {
       loadingRef.current.img.src = ''
       loadingRef.current = null
+      window.electronAPI.fs.resumeBackgroundThumbnails()
     }
   }, [])
 
@@ -23,6 +24,9 @@ export function useHoverPrefetch(
     // Don't compete with thumbnail loading — only start full-res once thumbnail is cached
     if (!thumbnailCacheRef.current[path]) return
 
+    // Pause background thumbnail generation to free disk I/O for full-res load
+    window.electronAPI.fs.pauseBackgroundThumbnails()
+
     const img = new Image()
     loadingRef.current = { path, img }
 
@@ -31,11 +35,13 @@ export function useHoverPrefetch(
         loadedRef.current.add(path)
         loadingRef.current = null
       }
+      window.electronAPI.fs.resumeBackgroundThumbnails()
     }
     img.onerror = () => {
       if (loadingRef.current?.path === path) {
         loadingRef.current = null
       }
+      window.electronAPI.fs.resumeBackgroundThumbnails()
     }
     img.src = `file://${path}`
   }, [cancel, thumbnailCacheRef])
