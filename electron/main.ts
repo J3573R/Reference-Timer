@@ -8,6 +8,9 @@ let mainWindow: BrowserWindow | null = null
 
 const thumbnailQueue = new ThumbnailQueue(6)
 
+let externalPauseCount = 0
+let foregroundRequestCount = 0
+
 // Debounced persistent cache writes — accumulates in memory, flushes every 2 seconds
 let pendingCacheUpdates: Record<string, string> = {}
 let cacheFlushTimer: ReturnType<typeof setTimeout> | null = null
@@ -63,9 +66,18 @@ ipcMain.handle('fs:fileExists', (_event, filePath: string) => {
 })
 
 ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[], priority: 'high' | 'low' = 'high') => {
+  if (priority === 'high') {
+    foregroundRequestCount++
+    thumbnailQueue.enterForeground()
+  }
   const results = await thumbnailQueue.enqueueBatch(imagePaths, priority)
-  // Filter out fallback entries (where thumbnail generation failed and returned the original path)
-  // and feed successful results into persistent cache
+  if (priority === 'high') {
+    foregroundRequestCount--
+    if (foregroundRequestCount === 0 && externalPauseCount === 0) {
+      thumbnailQueue.resumeBackground()
+    }
+  }
+  // Filter out fallback entries and feed successful results into persistent cache
   const filtered: Record<string, string> = {}
   for (const [imgPath, thumbPath] of Object.entries(results)) {
     if (thumbPath !== imgPath) {
@@ -74,6 +86,18 @@ ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[], priority
     }
   }
   return filtered
+})
+
+ipcMain.handle('fs:pauseBackgroundThumbnails', async () => {
+  externalPauseCount++
+  thumbnailQueue.pause()
+})
+
+ipcMain.handle('fs:resumeBackgroundThumbnails', async () => {
+  externalPauseCount = Math.max(0, externalPauseCount - 1)
+  if (externalPauseCount === 0) {
+    thumbnailQueue.resumeBackground()
+  }
 })
 
 ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: string[]) => {
