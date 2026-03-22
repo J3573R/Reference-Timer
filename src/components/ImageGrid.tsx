@@ -174,8 +174,11 @@ export default function ImageGrid({
     // Load in small chunks so thumbnails appear row-by-row instead of all at once.
     // Each chunk updates the UI immediately on completion.
     const CHUNK_SIZE = columnCount // One row at a time
+    const rangeAtStart = range
     const loadChunks = async () => {
       for (let i = 0; i < uncached.length; i += CHUNK_SIZE) {
+        // User scrolled — bail out, let the re-check load the new visible area
+        if (visibleRangeRef.current !== rangeAtStart) break
         const chunk = uncached.slice(i, i + CHUNK_SIZE)
         try {
           const results = await window.electronAPI.fs.getThumbnails(chunk, 'high')
