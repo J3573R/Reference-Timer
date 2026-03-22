@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('fs:getThumbnails', imagePaths, priority),
     generateThumbnailsInBackground: (folderPaths: string[]) =>
       ipcRenderer.invoke('fs:generateThumbnailsInBackground', folderPaths),
+    pauseBackgroundThumbnails: () => ipcRenderer.invoke('fs:pauseBackgroundThumbnails'),
+    resumeBackgroundThumbnails: () => ipcRenderer.invoke('fs:resumeBackgroundThumbnails'),
     onThumbnailProgress: (callback: (progress: { current: number; total: number }) => void) => {
       ipcRenderer.on('thumbnail-progress', (_event, progress) => callback(progress))
     },

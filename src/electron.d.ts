@@ -24,6 +24,8 @@ declare global {
         fileExists: (filePath: string) => Promise<boolean>
         getThumbnails: (imagePaths: string[], priority?: 'high' | 'low') => Promise<Record<string, string>>
         generateThumbnailsInBackground: (folderPaths: string[]) => Promise<void>
+        pauseBackgroundThumbnails: () => Promise<void>
+        resumeBackgroundThumbnails: () => Promise<void>
         onThumbnailProgress: (callback: (progress: { current: number; total: number }) => void) => void
         onThumbnailGenerated: (callback: (data: { imagePath: string; thumbnailPath: string }) => void) => void
         removeThumbnailProgressListener: () => void
