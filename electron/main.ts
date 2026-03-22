@@ -188,6 +188,52 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
+
+  // Run thumbnail cleanup after window loads, in the background
+  mainWindow.webContents.once('did-finish-load', () => {
+    cleanupOrphanedThumbnails()
+  })
+}
+
+async function cleanupOrphanedThumbnails() {
+  const fs = await import('fs')
+  const store = await getStore()
+  const cache: Record<string, string> = store.get('thumbnailCache') || {}
+  const entries = Object.entries(cache)
+  if (entries.length === 0) return
+
+  const orphanedKeys: string[] = []
+  const orphanedFiles: string[] = []
+
+  for (const [imagePath, thumbnailPath] of entries) {
+    // Check if the parent directory exists — if not, the volume may be unmounted.
+    // Skip these to avoid nuking cache for disconnected external drives.
+    const parentDir = path.dirname(imagePath)
+    if (!fs.existsSync(parentDir)) continue
+
+    // Parent exists but file doesn't — image was moved/deleted/renamed
+    if (!fs.existsSync(imagePath)) {
+      orphanedKeys.push(imagePath)
+      if (thumbnailPath && fs.existsSync(thumbnailPath)) {
+        orphanedFiles.push(thumbnailPath)
+      }
+    }
+  }
+
+  if (orphanedKeys.length === 0) return
+
+  // Remove orphaned thumbnail files
+  for (const file of orphanedFiles) {
+    try { fs.unlinkSync(file) } catch {}
+  }
+
+  // Remove orphaned cache entries
+  for (const key of orphanedKeys) {
+    delete cache[key]
+  }
+  store.set('thumbnailCache', cache)
+
+  console.log(`Thumbnail cleanup: removed ${orphanedKeys.length} orphaned entries, ${orphanedFiles.length} files`)
 }
 
 app.whenReady().then(createWindow)
