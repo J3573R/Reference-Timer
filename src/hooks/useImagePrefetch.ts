@@ -83,6 +83,14 @@ export function useImagePrefetch(
     }
   }, [currentIndex, imageList, getWindowPaths])
 
+  // Pause background thumbnail generation while session/preview is active
+  useEffect(() => {
+    window.electronAPI.fs.pauseBackgroundThumbnails()
+    return () => {
+      window.electronAPI.fs.resumeBackgroundThumbnails()
+    }
+  }, [])
+
   // Note: isLoaded reads from a ref and does not cause re-renders.
   // It reflects correct state at render time (e.g., when currentIndex changes).
   // The actual visual swap is driven by the <img> onLoad handler in consumers.
