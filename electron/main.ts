@@ -10,6 +10,7 @@ const thumbnailQueue = new ThumbnailQueue(6)
 
 let externalPauseCount = 0
 let foregroundRequestCount = 0
+let currentGenerationId = 0
 
 // Debounced persistent cache writes — accumulates in memory, flushes every 2 seconds
 let pendingCacheUpdates: Record<string, string> = {}
@@ -100,12 +101,21 @@ ipcMain.handle('fs:resumeBackgroundThumbnails', async () => {
   }
 })
 
+const BACKGROUND_BATCH_SIZE = 50
+
 ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: string[]) => {
-  // Collect all images that need thumbnails
+  const generationId = ++currentGenerationId
+
+  // Scan all images upfront for total count
   const allImages: string[] = []
   for (const folderPath of folderPaths) {
     allImages.push(...getAllImagesRecursive(folderPath))
   }
+  // Sort alphabetically to match grid UI order for the common case (flat folder).
+  // For nested folder structures, the grid shows one folder at a time via getImagesInFolder,
+  // while background generation spans the whole tree. This sort is best-effort alignment.
+  allImages.sort()
+
   const needsGen = allImages.filter(needsThumbnail)
 
   if (needsGen.length === 0) {
@@ -115,22 +125,48 @@ ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: 
 
   const total = needsGen.length
   let completed = 0
+  let batchIndex = 0
 
-  // Enqueue ALL background images into the shared queue at low priority
-  // This ensures foreground (visible) requests always take precedence
-  for (const imagePath of needsGen) {
-    thumbnailQueue.enqueue(imagePath, 'low').then((thumbnailPath) => {
-      completed++
-      mainWindow?.webContents.send('thumbnail-progress', { current: completed, total })
-      if (thumbnailPath !== imagePath) {
-        updatePersistentCache(imagePath, thumbnailPath)
-        mainWindow?.webContents.send('thumbnail-generated', { imagePath, thumbnailPath })
-      }
-    }).catch(() => {
-      completed++
-      mainWindow?.webContents.send('thumbnail-progress', { current: completed, total })
-    })
+  // Discard any queued background items from a previous folder
+  thumbnailQueue.discardBackground()
+
+  const enqueueNextBatch = () => {
+    // Stale generation — a new folder was selected
+    if (generationId !== currentGenerationId) return
+    // All batches enqueued
+    if (batchIndex >= needsGen.length) return
+
+    const batchEnd = Math.min(batchIndex + BACKGROUND_BATCH_SIZE, needsGen.length)
+    const batch = needsGen.slice(batchIndex, batchEnd)
+    batchIndex = batchEnd
+
+    const promises = batch.map(imagePath =>
+      thumbnailQueue.enqueue(imagePath, 'low').then((thumbnailPath) => {
+        completed++
+        mainWindow?.webContents.send('thumbnail-progress', { current: completed, total })
+        if (thumbnailPath !== imagePath) {
+          updatePersistentCache(imagePath, thumbnailPath)
+          mainWindow?.webContents.send('thumbnail-generated', { imagePath, thumbnailPath })
+        }
+      }).catch(() => {
+        completed++
+        mainWindow?.webContents.send('thumbnail-progress', { current: completed, total })
+      })
+    )
+    Promise.allSettled(promises).then(() => enqueueNextBatch())
   }
+
+  // Set up callback so batching resumes after foreground work completes
+  thumbnailQueue.setOnBackgroundResumed(() => {
+    if (generationId !== currentGenerationId) {
+      thumbnailQueue.setOnBackgroundResumed(null)
+      return
+    }
+    enqueueNextBatch()
+  })
+
+  // Start the first batch
+  enqueueNextBatch()
 })
 
 function createWindow() {
