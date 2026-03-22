@@ -170,16 +170,27 @@ export default function ImageGrid({
     if (uncached.length === 0) return
 
     loadingRef.current = true
-    window.electronAPI.fs.getThumbnails(uncached, 'high')
-      .then((results) => {
-        onThumbnailsLoaded(results)
-      })
-      .catch(console.error)
-      .finally(() => {
-        loadingRef.current = false
-        // Re-check: if user scrolled during loading, new visible images may need loading
-        loadVisibleThumbnails()
-      })
+
+    // Load in small chunks so thumbnails appear row-by-row instead of all at once.
+    // Each chunk updates the UI immediately on completion.
+    const CHUNK_SIZE = columnCount // One row at a time
+    const loadChunks = async () => {
+      for (let i = 0; i < uncached.length; i += CHUNK_SIZE) {
+        const chunk = uncached.slice(i, i + CHUNK_SIZE)
+        try {
+          const results = await window.electronAPI.fs.getThumbnails(chunk, 'high')
+          onThumbnailsLoaded(results)
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    }
+
+    loadChunks().finally(() => {
+      loadingRef.current = false
+      // Re-check: if user scrolled during loading, new visible images may need loading
+      loadVisibleThumbnails()
+    })
   }, [images, columnCount, onThumbnailsLoaded])
 
   const handleCellsRendered = useCallback((
