@@ -208,7 +208,7 @@ export default function ImageGrid({
 
     // Debounce: load thumbnails 100ms after scroll stops
     if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
-    loadTimerRef.current = setTimeout(loadVisibleThumbnails, 100)
+    loadTimerRef.current = setTimeout(loadVisibleThumbnails, 50)
 
   }, [loadVisibleThumbnails])
 
