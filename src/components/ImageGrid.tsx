@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useCallback, useRef, type MutableRefObject } from 'react'
-import { Grid } from 'react-window'
+import { Grid, useGridRef } from 'react-window'
 import ImagePreview from './ImagePreview'
 import { useHoverPrefetch } from '../hooks/useHoverPrefetch'
 
@@ -128,6 +128,7 @@ export default function ImageGrid({
   thumbnailCacheVersion,
   onThumbnailsLoaded,
 }: ImageGridProps) {
+  const gridRef = useGridRef()
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [columnCount, setColumnCount] = useState(6)
   const visibleRangeRef = useRef<{ rowStart: number; rowStop: number; colStart: number; colStop: number } | null>(null)
@@ -212,8 +213,9 @@ export default function ImageGrid({
 
   }, [loadVisibleThumbnails])
 
-  // Load visible thumbnails when images change (folder switch)
+  // Scroll to top and load visible thumbnails when images change (folder switch)
   useEffect(() => {
+    gridRef.current?.scrollToCell({ rowIndex: 0, columnIndex: 0 })
     // Small delay to let Grid render and fire onCellsRendered first
     const timer = setTimeout(loadVisibleThumbnails, 150)
     return () => clearTimeout(timer)
@@ -287,6 +289,7 @@ export default function ImageGrid({
       </div>
       <div className="image-grid">
         <Grid
+          ref={gridRef}
           cellComponent={ImageCell}
           cellProps={cellProps}
           columnCount={columnCount}
