@@ -82,31 +82,6 @@ export default function SessionView({
   const [fullResLoaded, setFullResLoaded] = useState(false)
   const waitingForLoadRef = useRef(true)
 
-  // When image changes: check if already prefetched, pause timer until loaded
-  useEffect(() => {
-    if (!current) return
-
-    if (isLoaded(current.imagePath)) {
-      setFullResLoaded(true)
-      waitingForLoadRef.current = false
-      reset(current.duration)
-      setImageStartTime(Date.now())
-    } else {
-      setFullResLoaded(false)
-      waitingForLoadRef.current = true
-      resetAndStop(current.duration)
-    }
-  }, [currentIndex, current, reset, resetAndStop, isLoaded])
-
-  // Start timer when full-res image finishes loading (only if waiting for load, not user-paused)
-  useEffect(() => {
-    if (fullResLoaded && current && waitingForLoadRef.current) {
-      waitingForLoadRef.current = false
-      reset(current.duration)
-      setImageStartTime(Date.now())
-    }
-  }, [fullResLoaded, current, reset])
-
   const recordImageTime = useCallback(() => {
     const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
     setSessionImages(prev => [...prev, { path: current.imagePath, timeSpent }])
@@ -154,11 +129,41 @@ export default function SessionView({
     }
   }, [current, resetAndStop])
 
+  const handleTogglePause = useCallback(() => {
+    waitingForLoadRef.current = false
+    togglePause()
+  }, [togglePause])
+
+  // When image changes: check if already prefetched, pause timer until loaded
+  useEffect(() => {
+    if (!current) return
+
+    if (isLoaded(current.imagePath)) {
+      setFullResLoaded(true)
+      waitingForLoadRef.current = false
+      reset(current.duration)
+      setImageStartTime(Date.now())
+    } else {
+      setFullResLoaded(false)
+      waitingForLoadRef.current = true
+      resetAndStop(current.duration)
+    }
+  }, [currentIndex, current, reset, resetAndStop, isLoaded])
+
+  // Start timer when full-res image finishes loading (only if waiting for load, not user-paused)
+  useEffect(() => {
+    if (fullResLoaded && current && waitingForLoadRef.current) {
+      waitingForLoadRef.current = false
+      reset(current.duration)
+      setImageStartTime(Date.now())
+    }
+  }, [fullResLoaded, current, reset])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault()
-        togglePause()
+        handleTogglePause()
       } else if (e.code === 'ArrowRight') {
         goToNext()
       } else if (e.code === 'ArrowLeft') {
@@ -169,7 +174,7 @@ export default function SessionView({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [togglePause, goToNext, goToPrevious, handleResetTimer])
+  }, [handleTogglePause, goToNext, goToPrevious, handleResetTimer])
 
   const handleEndSession = useCallback(() => {
     const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
@@ -283,7 +288,7 @@ export default function SessionView({
           <button className="session-btn" onClick={goToPrevious} disabled={currentIndex === 0}>
             &lt;
           </button>
-          <button className="session-btn primary" onClick={togglePause}>
+          <button className="session-btn primary" onClick={handleTogglePause}>
             {isPaused ? '>' : '||'}
           </button>
           <button className="session-btn" onClick={goToNext}>
