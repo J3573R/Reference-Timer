@@ -143,16 +143,16 @@ export async function getThumbnail(imagePath: string): Promise<string> {
   const thumbnailPath = getThumbnailPath(imagePath)
 
   // Return cached thumbnail if it exists and is newer than the original
-  if (fs.existsSync(thumbnailPath)) {
-    try {
-      const thumbStat = fs.statSync(thumbnailPath)
-      const origStat = fs.statSync(imagePath)
-      if (thumbStat.mtimeMs > origStat.mtimeMs) {
-        return thumbnailPath
-      }
-    } catch {
-      // If we can't stat, just regenerate
+  try {
+    const [thumbStat, origStat] = await Promise.all([
+      fs.promises.stat(thumbnailPath),
+      fs.promises.stat(imagePath),
+    ])
+    if (thumbStat.mtimeMs > origStat.mtimeMs) {
+      return thumbnailPath
     }
+  } catch {
+    // Thumbnail doesn't exist or can't stat — fall through to generate
   }
 
   try {
