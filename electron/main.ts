@@ -202,29 +202,45 @@ async function cleanupOrphanedThumbnails() {
   const entries = Object.entries(cache)
   if (entries.length === 0) return
 
+  const BATCH_SIZE = 50
   const orphanedKeys: string[] = []
   const orphanedFiles: string[] = []
 
-  for (const [imagePath, thumbnailPath] of entries) {
-    // Check if the parent directory exists — if not, the volume may be unmounted.
-    // Skip these to avoid nuking cache for disconnected external drives.
-    const parentDir = path.dirname(imagePath)
-    if (!fs.existsSync(parentDir)) continue
+  // Helper: returns true if path exists, false otherwise
+  const exists = async (p: string): Promise<boolean> => {
+    try { await fs.promises.access(p); return true } catch { return false }
+  }
 
-    // Parent exists but file doesn't — image was moved/deleted/renamed
-    if (!fs.existsSync(imagePath)) {
-      orphanedKeys.push(imagePath)
-      if (thumbnailPath && fs.existsSync(thumbnailPath)) {
-        orphanedFiles.push(thumbnailPath)
+  // Process entries in batches, yielding between batches for IPC responsiveness
+  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+    const batch = entries.slice(i, i + BATCH_SIZE)
+
+    await Promise.allSettled(batch.map(async ([imagePath, thumbnailPath]) => {
+      const parentDir = path.dirname(imagePath)
+      if (!(await exists(parentDir))) return // volume may be unmounted
+
+      if (!(await exists(imagePath))) {
+        orphanedKeys.push(imagePath)
+        if (thumbnailPath && await exists(thumbnailPath)) {
+          orphanedFiles.push(thumbnailPath)
+        }
       }
+    }))
+
+    // Yield to event loop between batches
+    if (i + BATCH_SIZE < entries.length) {
+      await new Promise(resolve => setTimeout(resolve, 0))
     }
   }
 
   if (orphanedKeys.length === 0) return
 
-  // Remove orphaned thumbnail files
-  for (const file of orphanedFiles) {
-    try { fs.unlinkSync(file) } catch {}
+  // Remove orphaned thumbnail files (async, batched)
+  for (let i = 0; i < orphanedFiles.length; i += BATCH_SIZE) {
+    const batch = orphanedFiles.slice(i, i + BATCH_SIZE)
+    await Promise.allSettled(batch.map(file =>
+      fs.promises.unlink(file).catch(() => {})
+    ))
   }
 
   // Remove orphaned cache entries
