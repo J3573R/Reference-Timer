@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, type MutableRefObject } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useTimer } from '../hooks/useTimer'
 import type { SessionConfig } from './SessionModal'
 import type { Stage, Session, SessionImage } from '../types'
@@ -80,11 +80,32 @@ export default function SessionView({
   const current = queue[currentIndex]
   const { isLoaded } = useImagePrefetch(currentIndex, imagePaths)
   const [fullResLoaded, setFullResLoaded] = useState(false)
+  const waitingForLoadRef = useRef(true)
 
-  // Reset fullResLoaded when image changes
+  // When image changes: check if already prefetched, pause timer until loaded
   useEffect(() => {
-    setFullResLoaded(false)
-  }, [currentIndex])
+    if (!current) return
+
+    if (isLoaded(current.imagePath)) {
+      setFullResLoaded(true)
+      waitingForLoadRef.current = false
+      reset(current.duration)
+      setImageStartTime(Date.now())
+    } else {
+      setFullResLoaded(false)
+      waitingForLoadRef.current = true
+      resetAndStop(current.duration)
+    }
+  }, [currentIndex, current, reset, resetAndStop, isLoaded])
+
+  // Start timer when full-res image finishes loading (only if waiting for load, not user-paused)
+  useEffect(() => {
+    if (fullResLoaded && current && waitingForLoadRef.current) {
+      waitingForLoadRef.current = false
+      reset(current.duration)
+      setImageStartTime(Date.now())
+    }
+  }, [fullResLoaded, current, reset])
 
   const recordImageTime = useCallback(() => {
     const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
@@ -110,7 +131,6 @@ export default function SessionView({
       setIsComplete(true)
     } else {
       setCurrentIndex(prev => prev + 1)
-      setImageStartTime(Date.now())
     }
   }, [currentIndex, queue.length, recordImageTime, audioChime])
 
@@ -118,7 +138,6 @@ export default function SessionView({
     if (currentIndex > 0) {
       recordImageTime()
       setCurrentIndex(prev => prev - 1)
-      setImageStartTime(Date.now())
       setSessionImages(prev => prev.slice(0, -1))
     }
   }, [currentIndex, recordImageTime])
@@ -130,15 +149,10 @@ export default function SessionView({
 
   const handleResetTimer = useCallback(() => {
     if (current) {
+      waitingForLoadRef.current = false
       resetAndStop(current.duration)
     }
   }, [current, resetAndStop])
-
-  useEffect(() => {
-    if (current) {
-      reset(current.duration)
-    }
-  }, [currentIndex, current, reset])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
