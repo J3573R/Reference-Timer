@@ -82,6 +82,11 @@ export default function SessionModal({
   }
 
   const handleStart = () => {
+    if (mode === 'quickstart') {
+      onStart({ mode })
+      return
+    }
+
     const config: SessionConfig = {
       mode,
       timePerImage,
@@ -109,12 +114,14 @@ export default function SessionModal({
   }
 
   const getTotalImages = (): number => {
+    if (mode === 'quickstart') return selectedCount
     if (mode === 'simple') return selectedCount
     if (mode === 'class') return Math.min(imageCount, selectedCount)
     return getProgressiveStages().reduce((sum, s) => sum + s.count, 0)
   }
 
-  const getTotalTime = (): number => {
+  const getTotalTime = (): number | null => {
+    if (mode === 'quickstart') return null
     if (mode === 'simple') return selectedCount * timePerImage
     if (mode === 'class') return Math.min(imageCount, selectedCount) * timePerImage
     return getProgressiveStages().reduce((sum, s) => sum + s.duration * s.count, 0)
@@ -131,7 +138,7 @@ export default function SessionModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Start Session">
       <div className="mode-tabs">
-        {(['simple', 'class', 'progressive'] as const).map(m => (
+        {(['simple', 'class', 'progressive', 'quickstart'] as const).map(m => (
           <button
             key={m}
             className={`mode-tab ${mode === m ? 'active' : ''}`}
@@ -141,6 +148,14 @@ export default function SessionModal({
           </button>
         ))}
       </div>
+
+      {mode === 'quickstart' && (
+        <div className="form-group">
+          <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+            Draw at your own pace. Timer counts up.
+          </p>
+        </div>
+      )}
 
       {(mode === 'simple' || mode === 'class') && (
         <div className="form-group">
@@ -259,7 +274,7 @@ export default function SessionModal({
         color: '#888'
       }}>
         <strong style={{ color: '#e0e0e0' }}>Session summary:</strong><br />
-        {getTotalImages()} images • {formatTime(getTotalTime())} total
+        {(() => { const t = getTotalTime(); return `${getTotalImages()} images${t !== null ? ` • ${formatTime(t)} total` : ' • Unlimited'}` })()}
       </div>
 
       <div className="modal-footer">
