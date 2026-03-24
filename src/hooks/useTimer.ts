@@ -11,11 +11,16 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
   const [resetTrigger, setResetTrigger] = useState(0)
   const intervalRef = useRef<number | null>(null)
   const onCompleteRef = useRef(onComplete)
+  const durationRef = useRef(duration)
 
   // Keep onComplete ref updated
   useEffect(() => {
     onCompleteRef.current = onComplete
   }, [onComplete])
+
+  useEffect(() => {
+    durationRef.current = duration
+  }, [duration])
 
   // Timer effect - runs when isPaused changes or after reset
   useEffect(() => {
@@ -26,23 +31,29 @@ export function useTimer({ duration, onComplete }: UseTimerOptions) {
     }
 
     // Don't start if paused or time is up
-    if (isPaused || timeLeft <= 0) {
+    if (isPaused || (timeLeft <= 0 && durationRef.current !== 0)) {
       return
     }
 
     // Start the interval
     intervalRef.current = window.setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current)
-            intervalRef.current = null
+      if (durationRef.current === 0) {
+        // Count-up mode
+        setTimeLeft(prev => prev + 1)
+      } else {
+        // Countdown mode
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current)
+              intervalRef.current = null
+            }
+            onCompleteRef.current()
+            return 0
           }
-          onCompleteRef.current()
-          return 0
-        }
-        return prev - 1
-      })
+          return prev - 1
+        })
+      }
     }, 1000)
 
     // Cleanup on unmount or when dependencies change
