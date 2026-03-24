@@ -114,6 +114,7 @@ export default function SessionView({
   }, [currentIndex, queue.length, recordImageTime, audioChime])
 
   const goToPrevious = useCallback(() => {
+    if (current?.duration === 0) return  // quickstart: prevent time data loss
     if (currentIndex > 0) {
       recordImageTime()
       setCurrentIndex(prev => prev - 1)
@@ -164,21 +165,22 @@ export default function SessionView({
   }, [fullResLoaded, current, reset])
 
   useEffect(() => {
+    const isQuickstart = current?.duration === 0
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault()
         handleTogglePause()
       } else if (e.code === 'ArrowRight') {
         goToNext()
-      } else if (e.code === 'ArrowLeft') {
+      } else if (e.code === 'ArrowLeft' && !isQuickstart) {
         goToPrevious()
-      } else if (e.code === 'KeyR') {
+      } else if (e.code === 'KeyR' && !isQuickstart) {
         handleResetTimer()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleTogglePause, goToNext, goToPrevious, handleResetTimer])
+  }, [handleTogglePause, goToNext, goToPrevious, handleResetTimer, current?.duration])
 
   const handleEndSession = useCallback(() => {
     const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
@@ -213,8 +215,12 @@ export default function SessionView({
   }, [startTime, config, sessionImages, onEnd])
 
   const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
+    const hours = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
     const secs = seconds % 60
+    if (hours > 0) {
+      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
     if (mins > 0) {
       return `${mins}:${secs.toString().padStart(2, '0')}`
     }
@@ -271,7 +277,7 @@ export default function SessionView({
       </div>
 
       <div className="session-overlay">
-        <div className={`session-timer ${timeLeft <= 5 ? 'warning' : ''}`}>
+        <div className={`session-timer ${current?.duration !== 0 && timeLeft <= 5 ? 'warning' : ''}`}>
           {formatTime(timeLeft)}
         </div>
         <div className="session-progress">
@@ -280,16 +286,18 @@ export default function SessionView({
             <span className="session-stage">{current.stageName}</span>
           )}
         </div>
-        <div className="session-reset">
-          <button className="session-btn" onClick={handleResetTimer} title="Reset timer (R)">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M3.5 2.5v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M3.5 7.5A7 7 0 1 1 3 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </div>
+        {current?.duration !== 0 && (
+          <div className="session-reset">
+            <button className="session-btn" onClick={handleResetTimer} title="Reset timer (R)">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M3.5 2.5v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3.5 7.5A7 7 0 1 1 3 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+        )}
         <div className="session-controls">
-          <button className="session-btn" onClick={goToPrevious} disabled={currentIndex === 0}>
+          <button className="session-btn" onClick={goToPrevious} disabled={currentIndex === 0 || current?.duration === 0}>
             &lt;
           </button>
           <button className="session-btn primary" onClick={handleTogglePause}>
