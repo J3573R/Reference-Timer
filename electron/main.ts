@@ -109,6 +109,7 @@ ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: 
   // Scan all images upfront for total count (async to avoid blocking event loop)
   const allImages: string[] = []
   for (const folderPath of folderPaths) {
+    if (generationId !== currentGenerationId) return
     allImages.push(...await getAllImagesRecursive(folderPath))
   }
   // Sort alphabetically to match grid UI order for the common case (flat folder).

@@ -206,7 +206,7 @@ export default function ImageGrid({
       colStop: visibleCells.columnStopIndex,
     }
 
-    // Debounce: load thumbnails 100ms after scroll stops
+    // Debounce: load thumbnails 50ms after scroll stops
     if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     loadTimerRef.current = setTimeout(loadVisibleThumbnails, 50)
 
