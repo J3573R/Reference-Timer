@@ -7,12 +7,16 @@ import sharp from 'sharp'
 const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
 const THUMBNAIL_SIZE = 200 // Thumbnail size in pixels
 
-// Get or create thumbnails directory
+// Get or create thumbnails directory (cached after first call)
+let cachedThumbnailsDir: string | null = null
+
 function getThumbnailsDir(): string {
+  if (cachedThumbnailsDir) return cachedThumbnailsDir
   const thumbnailsDir = path.join(app.getPath('userData'), 'thumbnails')
   if (!fs.existsSync(thumbnailsDir)) {
     fs.mkdirSync(thumbnailsDir, { recursive: true })
   }
+  cachedThumbnailsDir = thumbnailsDir
   return thumbnailsDir
 }
 
