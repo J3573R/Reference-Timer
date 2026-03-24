@@ -116,7 +116,19 @@ ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: 
   // while background generation spans the whole tree. This sort is best-effort alignment.
   allImages.sort()
 
-  const needsGen = allImages.filter(needsThumbnail)
+  // Filter in async batches — yields event loop between batches for IPC responsiveness
+  const FILTER_BATCH = 100
+  const needsGen: string[] = []
+  for (let i = 0; i < allImages.length; i += FILTER_BATCH) {
+    if (generationId !== currentGenerationId) break // bail on stale folder selection
+    const batch = allImages.slice(i, i + FILTER_BATCH)
+    const results = await Promise.all(
+      batch.map(async (img) => ({ img, needs: await needsThumbnail(img) }))
+    )
+    needsGen.push(...results.filter(r => r.needs).map(r => r.img))
+  }
+  // If we bailed early due to stale folder, don't proceed with partial results
+  if (generationId !== currentGenerationId) return
 
   if (needsGen.length === 0) {
     mainWindow?.webContents.send('thumbnail-progress', { current: 0, total: 0 })

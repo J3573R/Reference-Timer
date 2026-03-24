@@ -201,16 +201,14 @@ export async function getAllImagesRecursive(folderPath: string): Promise<string[
 }
 
 // Check if a thumbnail needs to be generated (doesn't exist or is outdated)
-export function needsThumbnail(imagePath: string): boolean {
+export async function needsThumbnail(imagePath: string): Promise<boolean> {
   const thumbnailPath = getThumbnailPath(imagePath)
 
-  if (!fs.existsSync(thumbnailPath)) {
-    return true
-  }
-
   try {
-    const thumbStat = fs.statSync(thumbnailPath)
-    const origStat = fs.statSync(imagePath)
+    const [thumbStat, origStat] = await Promise.all([
+      fs.promises.stat(thumbnailPath),
+      fs.promises.stat(imagePath),
+    ])
     return thumbStat.mtimeMs <= origStat.mtimeMs
   } catch {
     return true
