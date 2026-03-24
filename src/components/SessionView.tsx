@@ -23,12 +23,12 @@ function buildSessionQueue(
 
   if (config.mode === 'simple') {
     for (const img of images) {
-      queue.push({ imagePath: img, duration: config.timePerImage })
+      queue.push({ imagePath: img, duration: config.timePerImage ?? 60 })
     }
   } else if (config.mode === 'class') {
     const count = Math.min(config.imageCount || 10, images.length)
     for (let i = 0; i < count; i++) {
-      queue.push({ imagePath: images[i], duration: config.timePerImage })
+      queue.push({ imagePath: images[i], duration: config.timePerImage ?? 60 })
     }
   } else if (config.mode === 'progressive') {
     let stages: Stage[]
@@ -53,6 +53,10 @@ function buildSessionQueue(
         })
         imageIndex++
       }
+    }
+  } else if (config.mode === 'quickstart') {
+    for (const img of images) {
+      queue.push({ imagePath: img, duration: 0 })
     }
   }
 
@@ -118,7 +122,7 @@ export default function SessionView({
   }, [currentIndex, recordImageTime])
 
   const { timeLeft, isPaused, togglePause, reset, resetAndStop } = useTimer({
-    duration: current?.duration || 60,
+    duration: current ? current.duration : 60,
     onComplete: goToNext,
   })
 
