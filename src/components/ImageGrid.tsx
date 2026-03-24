@@ -289,7 +289,7 @@ export default function ImageGrid({
       </div>
       <div className="image-grid">
         <Grid
-          ref={gridRef}
+          gridRef={gridRef}
           cellComponent={ImageCell}
           cellProps={cellProps}
           columnCount={columnCount}
