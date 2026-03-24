@@ -38,6 +38,8 @@ export default function App() {
   const [thumbnailProgress, setThumbnailProgress] = useState<{ current: number; total: number } | null>(null)
   const thumbnailCacheRef = useRef<Record<string, string>>({})
   const [thumbnailCacheVersion, setThumbnailCacheVersion] = useState(0)
+  const preShuffledImagesRef = useRef<string[]>([])
+  const preloadedImagesRef = useRef<HTMLImageElement[]>([])
 
   // Load initial data
   useEffect(() => {
@@ -116,6 +118,26 @@ export default function App() {
     }
   }, [selectedPath, favorites])
 
+  // Pre-shuffle and preload first images when session modal opens
+  useEffect(() => {
+    if (!showSessionModal) {
+      preShuffledImagesRef.current = []
+      preloadedImagesRef.current = []
+      return
+    }
+
+    const shuffled = shuffleArray(Array.from(selectedImages))
+    preShuffledImagesRef.current = shuffled
+
+    // Preload first ~5 images to warm the browser decode cache
+    const toPreload = shuffled.slice(0, 5)
+    preloadedImagesRef.current = toPreload.map(imagePath => {
+      const img = new Image()
+      img.src = `file://${imagePath}`
+      return img
+    })
+  }, [showSessionModal, selectedImages])
+
   const handleManageFolders = useCallback(async () => {
     const folder = await window.electronAPI.fs.selectFolder()
     if (folder && !referenceFolders.includes(folder)) {
@@ -161,10 +183,10 @@ export default function App() {
 
   const handleStartSession = useCallback((config: SessionConfig) => {
     setShowSessionModal(false)
-    setActiveSession({
-      config,
-      images: shuffleArray(Array.from(selectedImages)),
-    })
+    const images = preShuffledImagesRef.current.length > 0
+      ? preShuffledImagesRef.current
+      : shuffleArray(Array.from(selectedImages))
+    setActiveSession({ config, images })
   }, [selectedImages])
 
   const handleEndSession = useCallback(async (session: Session) => {
