@@ -232,14 +232,21 @@ export default function App() {
 
   const handleRerunSession = useCallback((session: Session) => {
     setShowHistory(false)
-    setActiveSession({
-      config: {
-        mode: session.mode,
-        timePerImage: session.images[0]?.timeSpent || 60,
-        preset: session.preset,
-      },
-      images: shuffleArray(session.images.map(img => img.path)),
-    })
+    if (session.mode === 'quickstart') {
+      setActiveSession({
+        config: { mode: 'quickstart' },
+        images: shuffleArray(session.images.map(img => img.path)),
+      })
+    } else {
+      setActiveSession({
+        config: {
+          mode: session.mode,
+          timePerImage: session.images[0]?.timeSpent || 60,
+          preset: session.preset,
+        },
+        images: shuffleArray(session.images.map(img => img.path)),
+      })
+    }
   }, [])
 
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
