@@ -14,31 +14,21 @@ interface SessionViewProps {
   thumbnailCacheRef: MutableRefObject<Record<string, string>>
 }
 
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-  return shuffled
-}
-
 function buildSessionQueue(
   config: SessionConfig,
   images: string[],
   presets: { name: string; stages: Stage[] }[]
 ): { imagePath: string; duration: number; stageName?: string }[] {
-  const shuffled = shuffleArray(images)
   const queue: { imagePath: string; duration: number; stageName?: string }[] = []
 
   if (config.mode === 'simple') {
-    for (const img of shuffled) {
+    for (const img of images) {
       queue.push({ imagePath: img, duration: config.timePerImage })
     }
   } else if (config.mode === 'class') {
-    const count = Math.min(config.imageCount || 10, shuffled.length)
+    const count = Math.min(config.imageCount || 10, images.length)
     for (let i = 0; i < count; i++) {
-      queue.push({ imagePath: shuffled[i], duration: config.timePerImage })
+      queue.push({ imagePath: images[i], duration: config.timePerImage })
     }
   } else if (config.mode === 'progressive') {
     let stages: Stage[]
@@ -57,7 +47,7 @@ function buildSessionQueue(
       const stage = stages[stageIdx]
       for (let i = 0; i < stage.count; i++) {
         queue.push({
-          imagePath: shuffled[imageIndex % shuffled.length],
+          imagePath: images[imageIndex % images.length],
           duration: stage.duration,
           stageName: stageName ? `${stageName} - Stage ${stageIdx + 1}` : `Stage ${stageIdx + 1}`,
         })

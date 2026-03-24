@@ -9,6 +9,15 @@ import HistoryView from './components/HistoryView'
 import type { FolderNode } from './electron'
 import type { ProgressivePreset, Session, Settings } from './types'
 
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 export default function App() {
   const [referenceFolders, setReferenceFolders] = useState<string[]>([])
   const [folderTrees, setFolderTrees] = useState<FolderNode[]>([])
@@ -154,7 +163,7 @@ export default function App() {
     setShowSessionModal(false)
     setActiveSession({
       config,
-      images: Array.from(selectedImages),
+      images: shuffleArray(Array.from(selectedImages)),
     })
   }, [selectedImages])
 
@@ -207,7 +216,7 @@ export default function App() {
         timePerImage: session.images[0]?.timeSpent || 60,
         preset: session.preset,
       },
-      images: session.images.map(img => img.path),
+      images: shuffleArray(session.images.map(img => img.path)),
     })
   }, [])
 
