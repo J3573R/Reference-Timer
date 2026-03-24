@@ -106,10 +106,10 @@ const BACKGROUND_BATCH_SIZE = 50
 ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: string[]) => {
   const generationId = ++currentGenerationId
 
-  // Scan all images upfront for total count
+  // Scan all images upfront for total count (async to avoid blocking event loop)
   const allImages: string[] = []
   for (const folderPath of folderPaths) {
-    allImages.push(...getAllImagesRecursive(folderPath))
+    allImages.push(...await getAllImagesRecursive(folderPath))
   }
   // Sort alphabetically to match grid UI order for the common case (flat folder).
   // For nested folder structures, the grid shows one folder at a time via getImagesInFolder,

@@ -173,21 +173,22 @@ export async function getThumbnail(imagePath: string): Promise<string> {
 }
 
 // Recursively find all images in a folder tree
-export function getAllImagesRecursive(folderPath: string): string[] {
+export async function getAllImagesRecursive(folderPath: string): Promise<string[]> {
   const images: string[] = []
 
-  if (!fs.existsSync(folderPath)) {
+  try {
+    await fs.promises.access(folderPath)
+  } catch {
     return images
   }
 
   try {
-    const entries = fs.readdirSync(folderPath, { withFileTypes: true })
+    const entries = await fs.promises.readdir(folderPath, { withFileTypes: true })
 
     for (const entry of entries) {
       const fullPath = path.join(folderPath, entry.name)
       if (entry.isDirectory()) {
-        // Recursively scan subdirectories
-        images.push(...getAllImagesRecursive(fullPath))
+        images.push(...await getAllImagesRecursive(fullPath))
       } else if (entry.isFile() && isImageFile(entry.name)) {
         images.push(fullPath)
       }
