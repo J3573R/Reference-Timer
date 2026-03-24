@@ -120,7 +120,7 @@ export default function SessionView({
       setCurrentIndex(prev => prev - 1)
       setSessionImages(prev => prev.slice(0, -1))
     }
-  }, [currentIndex, recordImageTime])
+  }, [currentIndex, recordImageTime, current?.duration])
 
   const { timeLeft, isPaused, togglePause, reset, resetAndStop } = useTimer({
     duration: current ? current.duration : 60,
