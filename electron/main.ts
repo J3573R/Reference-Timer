@@ -201,9 +201,9 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
 
-  // Run thumbnail cleanup after window loads, in the background
+  // Defer thumbnail cleanup to avoid I/O contention during startup
   mainWindow.webContents.once('did-finish-load', () => {
-    cleanupOrphanedThumbnails()
+    setTimeout(() => cleanupOrphanedThumbnails(), 30000)
   })
 }
 
