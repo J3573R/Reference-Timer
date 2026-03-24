@@ -2,11 +2,11 @@ import { useState } from 'react'
 import Modal from './Modal'
 import type { ProgressivePreset, Stage } from '../types'
 
-type SessionMode = 'simple' | 'class' | 'progressive'
+type SessionMode = 'simple' | 'class' | 'progressive' | 'quickstart'
 
 export interface SessionConfig {
   mode: SessionMode
-  timePerImage: number
+  timePerImage?: number
   imageCount?: number
   preset?: string
   customStages?: Stage[]

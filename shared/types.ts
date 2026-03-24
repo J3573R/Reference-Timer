@@ -16,7 +16,7 @@ export interface SessionImage {
 export interface Session {
   id: string
   date: string  // ISO string
-  mode: 'simple' | 'class' | 'progressive'
+  mode: 'simple' | 'class' | 'progressive' | 'quickstart'
   preset?: string
   totalTime: number  // seconds
   complete: boolean
