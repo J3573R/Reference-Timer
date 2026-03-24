@@ -69,6 +69,7 @@ Function already returns `Promise<string>` — no signature change.
 - Replace `allImages.filter(needsThumbnail)` with batched async filter:
   - Batch size: 100 concurrent
   - `Promise.all` per batch
+  - Check `generationId` between batches to bail early on stale folder selections
   - Event loop is free between batches for IPC handling
 
 ### Fix #1: Defer cache cleanup
@@ -81,11 +82,14 @@ Change thumbnail load debounce from 100ms to 50ms in `ImageGrid.tsx`.
 
 ## What Doesn't Change
 
-- Queue architecture, priority system, concurrency limits
+- Queue architecture, priority system, concurrency limits (`ThumbnailQueue` — `getThumbnail` already returns a Promise, so the async conversion in Fix #4 is transparent)
 - Renderer code (except 1-line debounce change)
-- IPC protocol and data flow
+- IPC protocol, preload bridge, and data flow
 - Storage format (electron-store schema)
 - `cleanupOrphanedThumbnails` logic (already async — just deferred)
+- `scanFolder()`, `getSubfolders()`, `getImagesInFolder()`, `fileExists()` — these use sync fs calls but only read a single directory level or do a single stat, so they are fast even at scale. Not worth converting in this pass.
+
+Note: `cleanupOrphanedThumbnails` contention is disk I/O bandwidth, not event loop blocking (the function is already async with batched `Promise.allSettled`). Deferring it via `setTimeout` avoids competing with foreground I/O during the startup window.
 
 ## Risk
 
