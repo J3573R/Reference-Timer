@@ -24,19 +24,19 @@ When images are added to source folders on disk, the app has no way to pick them
 ```typescript
 const handleRefreshFolders = useCallback(() => {
   if (referenceFolders.length === 0) return
-  Promise.all(referenceFolders.map(f => window.electronAPI.fs.scanFolder(f)))
-    .then(trees => {
-      setFolderTrees(trees)
-      // Re-trigger thumbnail generation for current selection
-      // so newly added images get thumbnails
-      if (selectedPath) {
-        window.electronAPI.fs.generateThumbnailsInBackground(selectedPath)
-      }
-    })
+  Promise.all(
+    referenceFolders.map(f => window.electronAPI.fs.scanFolder(f))
+  ).then(trees => {
+    setFolderTrees(trees)
+    if (selectedPath && selectedPath !== '__favorites__') {
+      window.electronAPI.fs.getImagesInFolder(selectedPath).then(setCurrentImages)
+      window.electronAPI.fs.generateThumbnailsInBackground([selectedPath])
+    }
+  })
 }, [referenceFolders, selectedPath])
 ```
 
-This mirrors the existing `useEffect` at lines 66-75, plus triggers thumbnail generation for newly discovered images. Pass `onRefreshFolders={handleRefreshFolders}` to `<TopBar>`.
+This mirrors the existing `useEffect` at lines 66-75, plus reloads images for the currently selected folder and triggers thumbnail generation for newly discovered images. The `__favorites__` path is skipped since favorites are manually curated. Pass `onRefreshFolders={handleRefreshFolders}` to `<TopBar>`.
 
 ### Files Changed
 - `src/components/TopBar.tsx` — new prop, new button
