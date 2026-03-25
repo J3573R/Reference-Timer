@@ -36,7 +36,7 @@ export default function SessionModal({
   presets,
   onSavePreset
 }: SessionModalProps) {
-  const [mode, setMode] = useState<SessionMode>('simple')
+  const [mode, setMode] = useState<SessionMode>('quickstart')
   const [timePerImage, setTimePerImage] = useState(60)
   const [customTime, setCustomTime] = useState('')
   const [imageCount, setImageCount] = useState(10)
@@ -138,7 +138,7 @@ export default function SessionModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Start Session">
       <div className="mode-tabs">
-        {(['simple', 'class', 'progressive', 'quickstart'] as const).map(m => (
+        {(['quickstart', 'simple', 'class', 'progressive'] as const).map(m => (
           <button
             key={m}
             className={`mode-tab ${mode === m ? 'active' : ''}`}
