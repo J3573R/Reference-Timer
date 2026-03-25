@@ -16,7 +16,8 @@ When images are added to source folders on disk, the app has no way to pick them
 
 - New prop: `onRefreshFolders: () => void`
 - Button uses a circular-arrow SVG icon, styled as `btn-icon` (no text label, just the icon)
-- Optional: brief spin animation on click for feedback
+- Disable button when `referenceFolders.length === 0` for visual consistency
+- Temporarily disable for ~500ms after click to prevent rapid repeated clicks
 
 **App.tsx** — Define `handleRefreshFolders`:
 
@@ -24,11 +25,18 @@ When images are added to source folders on disk, the app has no way to pick them
 const handleRefreshFolders = useCallback(() => {
   if (referenceFolders.length === 0) return
   Promise.all(referenceFolders.map(f => window.electronAPI.fs.scanFolder(f)))
-    .then(setFolderTrees)
-}, [referenceFolders])
+    .then(trees => {
+      setFolderTrees(trees)
+      // Re-trigger thumbnail generation for current selection
+      // so newly added images get thumbnails
+      if (selectedPath) {
+        window.electronAPI.fs.generateThumbnailsInBackground(selectedPath)
+      }
+    })
+}, [referenceFolders, selectedPath])
 ```
 
-This mirrors the existing `useEffect` at lines 66-75. Pass `onRefreshFolders={handleRefreshFolders}` to `<TopBar>`.
+This mirrors the existing `useEffect` at lines 66-75, plus triggers thumbnail generation for newly discovered images. Pass `onRefreshFolders={handleRefreshFolders}` to `<TopBar>`.
 
 ### Files Changed
 - `src/components/TopBar.tsx` — new prop, new button
@@ -43,7 +51,7 @@ Users can see thumbnails of past session images in HistoryView but cannot view t
 
 ### Design
 
-**HistoryView.tsx** — Add state for image preview and render the existing `ImagePreview` component.
+**HistoryView.tsx** — Import `ImagePreview` from `'./ImagePreview'`. Add state for image preview and render the existing component.
 
 New state:
 ```typescript
@@ -71,8 +79,10 @@ Render `ImagePreview` when `previewSession` is set:
 
 Add `cursor: pointer` to `.history-image` in CSS so it's clear the thumbnails are clickable.
 
+**Known limitation:** If images have been deleted or moved from disk after a session, the preview will show a broken image. This is a pre-existing issue (thumbnails in HistoryView line 93 already load directly from disk paths) and is out of scope for this change.
+
 ### Files Changed
-- `src/components/HistoryView.tsx` — state, click handler, ImagePreview render
+- `src/components/HistoryView.tsx` — import, state, click handler, ImagePreview render
 - `src/styles/main.css` — cursor style on `.history-image`
 
 ---
@@ -94,7 +104,7 @@ Quickstart is the last tab in the session mode selector, but it should be first.
 {(['quickstart', 'simple', 'class', 'progressive'] as const).map(m => ...)}
 ```
 
-Also update the default `mode` state initialization (line ~15) from `'simple'` to `'quickstart'` so the first tab is selected by default when opening the modal.
+Also update the default `mode` state initialization (line ~15) from `'simple'` to `'quickstart'` so the first tab is selected by default when opening the modal. This is intentional — quickstart is the most common workflow and its minimal UI (no timer config) is a good default landing state.
 
 ### Files Changed
 - `src/components/SessionModal.tsx` — reorder array, update default mode
@@ -108,7 +118,7 @@ The sidebar and possibly the image grid area show horizontal scrollbars that sho
 
 ### Design
 
-**Sidebar CSS** — The `.sidebar` rule (main.css line 102) has `overflow-y: auto` but no explicit `overflow-x`. Add `overflow-x: hidden` to prevent horizontal scrollbar. Also add `word-break: break-word` to handle long folder names gracefully.
+**Sidebar CSS** — The `.sidebar` rule (main.css line 102) has `overflow-y: auto` but no explicit `overflow-x` (defaults to `visible`). Add `overflow-x: hidden` to prevent horizontal scrollbar. Add `overflow-wrap: break-word` (preferred over `word-break`) to handle long folder names gracefully.
 
 ```css
 .sidebar {
@@ -117,14 +127,15 @@ The sidebar and possibly the image grid area show horizontal scrollbars that sho
   border-right: 1px solid var(--border-subtle);
   overflow-y: auto;
   overflow-x: hidden;
+  overflow-wrap: break-word;
   padding: 12px 8px;
 }
 ```
 
-**Image grid area** — The grid is virtualized via react-window which calculates column count from container width, so it should already fit. If the horizontal scrollbar is on the main content area wrapping the grid, add `overflow-x: hidden` to `.content-area` or the relevant container.
+**Image grid area** — `.image-grid-container` already has `overflow: hidden` (main.css line 191), so no changes needed there. The scrollbar issue is sidebar-only.
 
 ### Files Changed
-- `src/styles/main.css` — overflow rules on `.sidebar` and content container
+- `src/styles/main.css` — overflow rules on `.sidebar`
 
 ---
 
@@ -138,3 +149,12 @@ The sidebar and possibly the image grid area show horizontal scrollbars that sho
 | No horizontal scrollbars | main.css | Trivial — CSS overflow rules |
 
 All features are independent and can be implemented in any order. No new components, no new IPC channels, no architectural changes.
+
+---
+
+## Manual Verification
+
+1. **Refresh folders:** Add new images to a source folder on disk. Click refresh button. Verify new images appear in the grid. Verify button is disabled when no folders are configured.
+2. **History preview:** Complete a session. Open History. Expand a session. Click an image thumbnail. Verify ImagePreview opens with prev/next navigation through that session's images. Verify Escape closes preview (not history).
+3. **Quickstart first:** Open session modal. Verify Quickstart tab is first and selected by default.
+4. **No scrollbars:** Add a folder with a long name. Verify sidebar has no horizontal scrollbar. Resize window narrow — verify no horizontal scrollbar appears on the image grid area either.
