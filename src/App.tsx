@@ -224,8 +224,11 @@ export default function App() {
     setFavorites(validFavorites)
   }, [favorites])
 
+  const lastRefreshRef = useRef(0)
   const handleRefreshFolders = useCallback(() => {
-    if (referenceFolders.length === 0) return
+    const now = Date.now()
+    if (referenceFolders.length === 0 || now - lastRefreshRef.current < 500) return
+    lastRefreshRef.current = now
     Promise.all(
       referenceFolders.map(f => window.electronAPI.fs.scanFolder(f))
     ).then(trees => {
