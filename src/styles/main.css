@@ -945,6 +945,7 @@ body {
   border-radius: var(--radius-sm);
   overflow: hidden;
   position: relative;
+  cursor: pointer;
 }
 
 .history-image img {

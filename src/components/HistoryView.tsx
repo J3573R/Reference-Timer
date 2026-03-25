@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ImagePreview from './ImagePreview'
 import type { Session } from '../types'
 
 interface HistoryViewProps {
@@ -10,6 +11,8 @@ interface HistoryViewProps {
 
 export default function HistoryView({ sessions, onClose, onRerun, onClearHistory }: HistoryViewProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [previewSession, setPreviewSession] = useState<Session | null>(null)
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   const formatDate = (isoString: string): string => {
     const date = new Date(isoString)
@@ -89,7 +92,10 @@ export default function HistoryView({ sessions, onClose, onRerun, onClearHistory
                   <div className="history-item-details">
                     <div className="history-images-grid">
                       {session.images.map((img, i) => (
-                        <div key={i} className="history-image">
+                        <div key={i} className="history-image" onClick={() => {
+                          setPreviewSession(session)
+                          setPreviewIndex(i)
+                        }}>
                           <img src={`file://${img.path}`} alt="" />
                           <div className="history-image-time">{formatDuration(img.timeSpent)}</div>
                         </div>
@@ -110,6 +116,18 @@ export default function HistoryView({ sessions, onClose, onRerun, onClearHistory
           </div>
         )}
       </div>
+      {previewSession && (
+        <ImagePreview
+          imagePath={previewSession.images[previewIndex].path}
+          imageList={previewSession.images.map(img => img.path)}
+          currentIndex={previewIndex}
+          onClose={() => setPreviewSession(null)}
+          onPrev={() => setPreviewIndex(i => i - 1)}
+          onNext={() => setPreviewIndex(i => i + 1)}
+          hasPrev={previewIndex > 0}
+          hasNext={previewIndex < previewSession.images.length - 1}
+        />
+      )}
     </div>
   )
 }
