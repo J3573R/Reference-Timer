@@ -224,6 +224,19 @@ export default function App() {
     setFavorites(validFavorites)
   }, [favorites])
 
+  const handleRefreshFolders = useCallback(() => {
+    if (referenceFolders.length === 0) return
+    Promise.all(
+      referenceFolders.map(f => window.electronAPI.fs.scanFolder(f))
+    ).then(trees => {
+      setFolderTrees(trees)
+      if (selectedPath && selectedPath !== '__favorites__') {
+        window.electronAPI.fs.getImagesInFolder(selectedPath).then(setCurrentImages)
+        window.electronAPI.fs.generateThumbnailsInBackground([selectedPath])
+      }
+    })
+  }, [referenceFolders, selectedPath])
+
   const handleDeletePreset = useCallback(async (name: string) => {
     const newPresets = presets.filter(p => p.name !== name)
     await window.electronAPI.store.set('progressivePresets', newPresets)
@@ -285,6 +298,8 @@ export default function App() {
         onHistory={() => setShowHistory(true)}
         onSettings={() => setShowSettings(true)}
         onStartSession={() => setShowSessionModal(true)}
+        onRefreshFolders={handleRefreshFolders}
+        hasFolders={referenceFolders.length > 0}
         thumbnailProgress={thumbnailProgress}
       />
       <div className="main-content">

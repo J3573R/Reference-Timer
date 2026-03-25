@@ -407,6 +407,11 @@ body {
   color: var(--text-primary);
 }
 
+.btn-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 /* ===== Empty State ===== */
 .empty-state {
   display: flex;
