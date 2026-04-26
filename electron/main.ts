@@ -11,22 +11,36 @@ const thumbnailQueue = new ThumbnailQueue(6)
 let externalPauseCount = 0
 let foregroundRequestCount = 0
 let currentGenerationId = 0
+let windowVisible = true
 
 // Debounced persistent cache writes — accumulates in memory, flushes every 2 seconds
 let pendingCacheUpdates: Record<string, string> = {}
 let cacheFlushTimer: ReturnType<typeof setTimeout> | null = null
 
-async function updatePersistentCache(imagePath: string, thumbnailPath: string) {
+async function flushPendingCache() {
+  if (cacheFlushTimer) {
+    clearTimeout(cacheFlushTimer)
+    cacheFlushTimer = null
+  }
+  if (Object.keys(pendingCacheUpdates).length === 0) return
+  const updates = pendingCacheUpdates
+  pendingCacheUpdates = {}
+  const store = await getStore()
+  const cache = store.get('thumbnailCache') || {}
+  Object.assign(cache, updates)
+  store.set('thumbnailCache', cache)
+}
+
+function updatePersistentCache(imagePath: string, thumbnailPath: string) {
   pendingCacheUpdates[imagePath] = thumbnailPath
   if (cacheFlushTimer) return // already scheduled
-  cacheFlushTimer = setTimeout(async () => {
-    const store = await getStore()
-    const cache = store.get('thumbnailCache') || {}
-    Object.assign(cache, pendingCacheUpdates)
-    store.set('thumbnailCache', cache)
-    pendingCacheUpdates = {}
-    cacheFlushTimer = null
-  }, 2000)
+  cacheFlushTimer = setTimeout(flushPendingCache, 2000)
+}
+
+function maybeResumeBackground() {
+  if (externalPauseCount === 0 && foregroundRequestCount === 0 && windowVisible) {
+    thumbnailQueue.resumeBackground()
+  }
 }
 
 // IPC Handlers
@@ -74,9 +88,7 @@ ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[], priority
   const results = await thumbnailQueue.enqueueBatch(imagePaths, priority)
   if (priority === 'high') {
     foregroundRequestCount--
-    if (foregroundRequestCount === 0 && externalPauseCount === 0) {
-      thumbnailQueue.resumeBackground()
-    }
+    maybeResumeBackground()
   }
   // Feed successful results into persistent cache.
   // Return ALL results (including fallbacks where thumbPath === imgPath) so the renderer
@@ -96,9 +108,7 @@ ipcMain.handle('fs:pauseBackgroundThumbnails', async () => {
 
 ipcMain.handle('fs:resumeBackgroundThumbnails', async () => {
   externalPauseCount = Math.max(0, externalPauseCount - 1)
-  if (externalPauseCount === 0 && foregroundRequestCount === 0) {
-    thumbnailQueue.resumeBackground()
-  }
+  maybeResumeBackground()
 })
 
 const BACKGROUND_BATCH_SIZE = 50
@@ -191,6 +201,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       webSecurity: false, // Allow loading local file:// images
+      backgroundThrottling: false,
     },
   })
 
@@ -201,6 +212,17 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
+
+  mainWindow.on('blur', () => {
+    windowVisible = false
+    thumbnailQueue.pause()
+    flushPendingCache()
+  })
+
+  mainWindow.on('focus', () => {
+    windowVisible = true
+    maybeResumeBackground()
+  })
 
   // Defer thumbnail cleanup to avoid I/O contention during startup
   mainWindow.webContents.once('did-finish-load', () => {
