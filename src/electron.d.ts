@@ -23,6 +23,7 @@ declare global {
         getImagesInFolder: (folderPath: string) => Promise<string[]>
         fileExists: (filePath: string) => Promise<boolean>
         getThumbnails: (imagePaths: string[], priority?: 'high' | 'low') => Promise<Record<string, string>>
+        getCachedThumbnails: (imagePaths: string[]) => Promise<Record<string, string>>
         generateThumbnailsInBackground: (folderPaths: string[]) => Promise<void>
         pauseBackgroundThumbnails: () => Promise<void>
         resumeBackgroundThumbnails: () => Promise<void>

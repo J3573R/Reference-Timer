@@ -42,7 +42,8 @@ export default function App() {
   const preShuffledImagesRef = useRef<string[]>([])
   const preloadedImagesRef = useRef<HTMLImageElement[]>([])
 
-  // Load initial data
+  // Load initial data. Note: thumbnail cache is no longer loaded here — it
+  // lives in SQLite (main process) and is fetched per-folder lazily below.
   useEffect(() => {
     Promise.all([
       window.electronAPI.store.get('referenceFolders'),
@@ -50,17 +51,12 @@ export default function App() {
       window.electronAPI.store.get('progressivePresets'),
       window.electronAPI.store.get('settings'),
       window.electronAPI.store.get('sessionHistory'),
-      window.electronAPI.store.get('thumbnailCache'),
-    ]).then(([folders, favs, prsts, sttngs, history, cachedThumbnails]) => {
+    ]).then(([folders, favs, prsts, sttngs, history]) => {
       setReferenceFolders(folders)
       setFavorites(favs)
       setPresets(prsts)
       setSettings(sttngs)
       setSessionHistory(history)
-      if (cachedThumbnails) {
-        thumbnailCacheRef.current = cachedThumbnails
-        setThumbnailCacheVersion(v => v + 1)
-      }
     })
   }, [])
 
@@ -118,6 +114,20 @@ export default function App() {
       window.electronAPI.fs.getImagesInFolder(selectedPath).then(setCurrentImages)
     }
   }, [selectedPath, favorites])
+
+  // Lazy cache hydration: when the visible image list changes, fetch any
+  // already-cached thumbnail paths from SQLite so the grid can render them
+  // immediately without re-triggering Sharp.
+  useEffect(() => {
+    if (currentImages.length === 0) return
+    const missing = currentImages.filter(p => !thumbnailCacheRef.current[p])
+    if (missing.length === 0) return
+    window.electronAPI.fs.getCachedThumbnails(missing).then((cached) => {
+      if (Object.keys(cached).length === 0) return
+      Object.assign(thumbnailCacheRef.current, cached)
+      setThumbnailCacheVersion(v => v + 1)
+    })
+  }, [currentImages])
 
   // Pre-shuffle and preload first images when session modal opens
   useEffect(() => {
@@ -266,20 +276,11 @@ export default function App() {
     }
   }, [])
 
-  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const persistThumbnailCache = useCallback(() => {
-    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
-    persistTimerRef.current = setTimeout(() => {
-      window.electronAPI.store.set('thumbnailCache', thumbnailCacheRef.current)
-    }, 2000)
-  }, [])
-
   const handleThumbnailsLoaded = useCallback((newThumbnails: Record<string, string>) => {
     Object.assign(thumbnailCacheRef.current, newThumbnails)
     setThumbnailCacheVersion(v => v + 1)
-    persistThumbnailCache()
-  }, [persistThumbnailCache])
+    // Persistence happens in main process (SQLite); no renderer-side write needed.
+  }, [])
 
   if (activeSession) {
     return (

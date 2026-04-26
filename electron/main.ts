@@ -4,6 +4,7 @@ import fs from 'fs'
 import { getStore } from './store.js'
 import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists, getAllImagesRecursive, needsThumbnail } from './fileSystem.js'
 import { ThumbnailQueue } from './thumbnailQueue.js'
+import * as thumbnailCache from './thumbnailCache.js'
 
 // Custom protocol so Chromium caches decoded bitmaps for local images.
 // file:// bypasses HTTP cache, causing every render/scroll-back to re-decode from disk.
@@ -28,28 +29,15 @@ let foregroundRequestCount = 0
 let currentGenerationId = 0
 let windowVisible = true
 
-// Debounced persistent cache writes — accumulates in memory, flushes every 2 seconds
-let pendingCacheUpdates: Record<string, string> = {}
-let cacheFlushTimer: ReturnType<typeof setTimeout> | null = null
-
-async function flushPendingCache() {
-  if (cacheFlushTimer) {
-    clearTimeout(cacheFlushTimer)
-    cacheFlushTimer = null
-  }
-  if (Object.keys(pendingCacheUpdates).length === 0) return
-  const updates = pendingCacheUpdates
-  pendingCacheUpdates = {}
+async function migrateLegacyCache() {
+  if (thumbnailCache.size() > 0) return // already migrated or fresh start with new entries
   const store = await getStore()
-  const cache = store.get('thumbnailCache') || {}
-  Object.assign(cache, updates)
-  store.set('thumbnailCache', cache)
-}
-
-function updatePersistentCache(imagePath: string, thumbnailPath: string) {
-  pendingCacheUpdates[imagePath] = thumbnailPath
-  if (cacheFlushTimer) return // already scheduled
-  cacheFlushTimer = setTimeout(flushPendingCache, 2000)
+  const legacy = store.get('thumbnailCache') || {}
+  const keys = Object.keys(legacy)
+  if (keys.length === 0) return
+  console.log(`[migration] importing ${keys.length} thumbnail cache entries from electron-store to SQLite`)
+  thumbnailCache.setMany(legacy)
+  store.set('thumbnailCache', {})
 }
 
 function maybeResumeBackground() {
@@ -108,12 +96,18 @@ ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[], priority
   // Feed successful results into persistent cache.
   // Return ALL results (including fallbacks where thumbPath === imgPath) so the renderer
   // caches failed attempts and doesn't retry forever for unsupported formats.
+  const successful: Record<string, string> = {}
   for (const [imgPath, thumbPath] of Object.entries(results)) {
     if (thumbPath !== imgPath) {
-      updatePersistentCache(imgPath, thumbPath)
+      successful[imgPath] = thumbPath
     }
   }
+  thumbnailCache.setMany(successful)
   return results
+})
+
+ipcMain.handle('fs:getCachedThumbnails', (_event, imagePaths: string[]) => {
+  return thumbnailCache.getMany(imagePaths)
 })
 
 ipcMain.handle('fs:pauseBackgroundThumbnails', async () => {
@@ -183,7 +177,7 @@ ipcMain.handle('fs:generateThumbnailsInBackground', async (_event, folderPaths: 
         completed++
         mainWindow?.webContents.send('thumbnail-progress', { current: completed, total })
         if (thumbnailPath !== imagePath) {
-          updatePersistentCache(imagePath, thumbnailPath)
+          thumbnailCache.set(imagePath, thumbnailPath)
           mainWindow?.webContents.send('thumbnail-generated', { imagePath, thumbnailPath })
         }
       }).catch(() => {
@@ -231,7 +225,6 @@ function createWindow() {
   mainWindow.on('blur', () => {
     windowVisible = false
     thumbnailQueue.pause()
-    flushPendingCache()
   })
 
   mainWindow.on('focus', () => {
@@ -246,38 +239,32 @@ function createWindow() {
 }
 
 async function cleanupOrphanedThumbnails() {
-  const fs = await import('fs')
-  const store = await getStore()
-  const cache: Record<string, string> = store.get('thumbnailCache') || {}
-  const entries = Object.entries(cache)
+  const entries = [...thumbnailCache.allEntries()]
   if (entries.length === 0) return
 
   const BATCH_SIZE = 50
   const orphanedKeys: string[] = []
   const orphanedFiles: string[] = []
 
-  // Helper: returns true if path exists, false otherwise
   const exists = async (p: string): Promise<boolean> => {
     try { await fs.promises.access(p); return true } catch { return false }
   }
 
-  // Process entries in batches, yielding between batches for IPC responsiveness
   for (let i = 0; i < entries.length; i += BATCH_SIZE) {
     const batch = entries.slice(i, i + BATCH_SIZE)
 
-    await Promise.allSettled(batch.map(async ([imagePath, thumbnailPath]) => {
-      const parentDir = path.dirname(imagePath)
+    await Promise.allSettled(batch.map(async ({ image_path, thumbnail_path }) => {
+      const parentDir = path.dirname(image_path)
       if (!(await exists(parentDir))) return // volume may be unmounted
 
-      if (!(await exists(imagePath))) {
-        orphanedKeys.push(imagePath)
-        if (thumbnailPath && await exists(thumbnailPath)) {
-          orphanedFiles.push(thumbnailPath)
+      if (!(await exists(image_path))) {
+        orphanedKeys.push(image_path)
+        if (thumbnail_path && await exists(thumbnail_path)) {
+          orphanedFiles.push(thumbnail_path)
         }
       }
     }))
 
-    // Yield to event loop between batches
     if (i + BATCH_SIZE < entries.length) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
@@ -285,7 +272,6 @@ async function cleanupOrphanedThumbnails() {
 
   if (orphanedKeys.length === 0) return
 
-  // Remove orphaned thumbnail files (async, batched)
   for (let i = 0; i < orphanedFiles.length; i += BATCH_SIZE) {
     const batch = orphanedFiles.slice(i, i + BATCH_SIZE)
     await Promise.allSettled(batch.map(file =>
@@ -293,11 +279,7 @@ async function cleanupOrphanedThumbnails() {
     ))
   }
 
-  // Remove orphaned cache entries
-  for (const key of orphanedKeys) {
-    delete cache[key]
-  }
-  store.set('thumbnailCache', cache)
+  thumbnailCache.deleteMany(orphanedKeys)
 
   console.log(`Thumbnail cleanup: removed ${orphanedKeys.length} orphaned entries, ${orphanedFiles.length} files`)
 }
@@ -311,7 +293,8 @@ const MIME_TYPES: Record<string, string> = {
   '.bmp': 'image/bmp',
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await migrateLegacyCache()
   protocol.handle('local', async (request) => {
     const url = new URL(request.url)
     const absolutePath = decodeURIComponent(url.pathname)

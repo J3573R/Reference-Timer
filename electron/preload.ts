@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fileExists: (filePath: string) => ipcRenderer.invoke('fs:fileExists', filePath),
     getThumbnails: (imagePaths: string[], priority: 'high' | 'low' = 'high') =>
       ipcRenderer.invoke('fs:getThumbnails', imagePaths, priority),
+    getCachedThumbnails: (imagePaths: string[]) =>
+      ipcRenderer.invoke('fs:getCachedThumbnails', imagePaths),
     generateThumbnailsInBackground: (folderPaths: string[]) =>
       ipcRenderer.invoke('fs:generateThumbnailsInBackground', folderPaths),
     pauseBackgroundThumbnails: () => ipcRenderer.invoke('fs:pauseBackgroundThumbnails'),
