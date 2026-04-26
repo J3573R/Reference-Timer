@@ -8,6 +8,7 @@ import SessionView from './components/SessionView'
 import HistoryView from './components/HistoryView'
 import type { FolderNode } from './electron'
 import type { ProgressivePreset, Session, Settings } from './types'
+import { imageUrl } from './utils/imageUrl'
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
@@ -133,7 +134,7 @@ export default function App() {
     const toPreload = shuffled.slice(0, 5)
     preloadedImagesRef.current = toPreload.map(imagePath => {
       const img = new Image()
-      img.src = `file://${imagePath}`
+      img.src = imageUrl(imagePath)
       return img
     })
   }, [showSessionModal, selectedImages])

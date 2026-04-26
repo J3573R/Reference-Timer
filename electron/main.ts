@@ -1,8 +1,23 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol } from 'electron'
 import path from 'path'
+import fs from 'fs'
 import { getStore } from './store.js'
 import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists, getAllImagesRecursive, needsThumbnail } from './fileSystem.js'
 import { ThumbnailQueue } from './thumbnailQueue.js'
+
+// Custom protocol so Chromium caches decoded bitmaps for local images.
+// file:// bypasses HTTP cache, causing every render/scroll-back to re-decode from disk.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'local',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+    },
+  },
+])
 
 let mainWindow: BrowserWindow | null = null
 
@@ -287,7 +302,36 @@ async function cleanupOrphanedThumbnails() {
   console.log(`Thumbnail cleanup: removed ${orphanedKeys.length} orphaned entries, ${orphanedFiles.length} files`)
 }
 
-app.whenReady().then(createWindow)
+const MIME_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.bmp': 'image/bmp',
+}
+
+app.whenReady().then(() => {
+  protocol.handle('local', async (request) => {
+    const url = new URL(request.url)
+    const absolutePath = decodeURIComponent(url.pathname)
+    try {
+      const data = await fs.promises.readFile(absolutePath)
+      const ext = path.extname(absolutePath).toLowerCase()
+      const mimeType = MIME_TYPES[ext] || 'application/octet-stream'
+      return new Response(data, {
+        headers: {
+          'Content-Type': mimeType,
+          'Cache-Control': 'public, max-age=86400, immutable',
+        },
+      })
+    } catch (err) {
+      console.error(`[local://] failed url=${request.url} resolved=${absolutePath}`, err)
+      return new Response(null, { status: 404 })
+    }
+  })
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

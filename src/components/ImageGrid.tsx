@@ -2,6 +2,7 @@ import { useMemo, useEffect, useState, useCallback, useRef, type MutableRefObjec
 import { Grid, useGridRef } from 'react-window'
 import ImagePreview from './ImagePreview'
 import { useHoverPrefetch } from '../hooks/useHoverPrefetch'
+import { imageUrl } from '../utils/imageUrl'
 
 interface ImageGridProps {
   images: string[]
@@ -74,7 +75,7 @@ function ImageCell({
       >
         {thumbnailPath ? (
           <img
-            src={`file://${thumbnailPath}`}
+            src={imageUrl(thumbnailPath)}
             alt=""
             loading="lazy"
             decoding="async"

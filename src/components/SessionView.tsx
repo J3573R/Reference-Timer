@@ -3,6 +3,7 @@ import { useTimer } from '../hooks/useTimer'
 import type { SessionConfig } from './SessionModal'
 import type { Stage, Session, SessionImage } from '../types'
 import { useImagePrefetch } from '../hooks/useImagePrefetch'
+import { imageUrl } from '../utils/imageUrl'
 
 interface SessionViewProps {
   config: SessionConfig
@@ -261,13 +262,13 @@ export default function SessionView({
           {!fullResLoaded && !isLoaded(current.imagePath) && thumbnailCacheRef.current[current.imagePath] && (
             <img
               className="session-image-thumbnail"
-              src={`file://${thumbnailCacheRef.current[current.imagePath]}`}
+              src={imageUrl(thumbnailCacheRef.current[current.imagePath])}
               alt=""
             />
           )}
           <img
             className="session-image-full"
-            src={`file://${current.imagePath}`}
+            src={imageUrl(current.imagePath)}
             alt=""
             onLoad={() => setFullResLoaded(true)}
             style={{ opacity: fullResLoaded || isLoaded(current.imagePath) ? 1 : 0 }}

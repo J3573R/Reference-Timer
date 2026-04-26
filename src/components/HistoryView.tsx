@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ImagePreview from './ImagePreview'
 import type { Session } from '../types'
+import { imageUrl } from '../utils/imageUrl'
 
 interface HistoryViewProps {
   sessions: Session[]
@@ -96,7 +97,7 @@ export default function HistoryView({ sessions, onClose, onRerun, onClearHistory
                           setPreviewSession(session)
                           setPreviewIndex(i)
                         }}>
-                          <img src={`file://${img.path}`} alt="" />
+                          <img src={imageUrl(img.path)} alt="" />
                           <div className="history-image-time">{formatDuration(img.timeSpent)}</div>
                         </div>
                       ))}

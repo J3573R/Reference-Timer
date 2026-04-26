@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useImagePrefetch } from '../hooks/useImagePrefetch'
+import { imageUrl } from '../utils/imageUrl'
 
 interface ImagePreviewProps {
   imagePath: string
@@ -130,7 +131,7 @@ export default function ImagePreview({
         <div className="preview-image-wrapper">
           <img
             className="preview-image-full"
-            src={`file://${imagePath}`}
+            src={imageUrl(imagePath)}
             alt=""
             draggable={false}
             onClick={e => e.stopPropagation()}

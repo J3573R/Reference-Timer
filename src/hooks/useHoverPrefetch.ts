@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react'
 import type { MutableRefObject } from 'react'
+import { imageUrl } from '../utils/imageUrl'
 
 export function useHoverPrefetch(
   images: string[],
@@ -43,7 +44,7 @@ export function useHoverPrefetch(
       }
       window.electronAPI.fs.resumeBackgroundThumbnails()
     }
-    img.src = `file://${path}`
+    img.src = imageUrl(path)
   }, [cancel, thumbnailCacheRef])
 
   const onLeave = useCallback(() => {

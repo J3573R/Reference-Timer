@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect } from 'react'
+import { imageUrl } from '../utils/imageUrl'
 
 const PREFETCH_AHEAD = 50
 const PREFETCH_BEHIND = 20
@@ -69,7 +70,7 @@ export function useImagePrefetch(
           loadingSet.current.delete(path)
           imageRefs.current.delete(path)
         }
-        img.src = `file://${path}`
+        img.src = imageUrl(path)
 
         // Yield to browser between loads to avoid saturating I/O
         await new Promise(r => setTimeout(r, 0))
