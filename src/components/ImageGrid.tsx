@@ -15,6 +15,7 @@ interface ImageGridProps {
   thumbnailCacheRef: MutableRefObject<Record<string, string>>
   thumbnailCacheVersion: number
   onThumbnailsLoaded: (thumbnails: Record<string, string>) => void
+  onImageViewed: (path: string) => void
 }
 
 const CARD_SIZE = 176 // 160px card + 16px gap
@@ -128,6 +129,7 @@ export default function ImageGrid({
   thumbnailCacheRef,
   thumbnailCacheVersion,
   onThumbnailsLoaded,
+  onImageViewed,
 }: ImageGridProps) {
   const gridRef = useGridRef()
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -221,6 +223,11 @@ export default function ImageGrid({
     const timer = setTimeout(loadVisibleThumbnails, 150)
     return () => clearTimeout(timer)
   }, [images, loadVisibleThumbnails])
+
+  // Record every image opened in the preview to the viewing history
+  useEffect(() => {
+    if (previewImage) onImageViewed(previewImage)
+  }, [previewImage, onImageViewed])
 
   // Preview navigation (wrap-around)
   const currentPreviewIndex = previewImage ? images.indexOf(previewImage) : -1

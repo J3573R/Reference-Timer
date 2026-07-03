@@ -5,5 +5,6 @@ export type {
   SessionImage,
   Session,
   Settings,
+  ViewedImage,
   AppData,
 } from '../shared/types'

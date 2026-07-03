@@ -1,18 +1,27 @@
 import { useState } from 'react'
 import ImagePreview from './ImagePreview'
-import type { Session } from '../types'
+import type { Session, ViewedImage } from '../types'
 import { imageUrl } from '../utils/imageUrl'
 
 interface HistoryViewProps {
   sessions: Session[]
+  viewedImages: ViewedImage[]
   onClose: () => void
   onRerun: (session: Session) => void
   onClearHistory: () => void
+  onClearViewed: () => void
 }
 
-export default function HistoryView({ sessions, onClose, onRerun, onClearHistory }: HistoryViewProps) {
+export default function HistoryView({
+  sessions,
+  viewedImages,
+  onClose,
+  onRerun,
+  onClearHistory,
+  onClearViewed,
+}: HistoryViewProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [previewSession, setPreviewSession] = useState<Session | null>(null)
+  const [previewList, setPreviewList] = useState<string[] | null>(null)
   const [previewIndex, setPreviewIndex] = useState(0)
 
   const formatDate = (isoString: string): string => {
@@ -63,6 +72,27 @@ export default function HistoryView({ sessions, onClose, onRerun, onClearHistory
       </div>
 
       <div className="history-content">
+        {viewedImages.length > 0 && (
+          <div className="viewed-section">
+            <div className="viewed-section-header">
+              <h3>Recently Viewed</h3>
+              <button className="btn btn-secondary btn-small" onClick={onClearViewed}>
+                Clear
+              </button>
+            </div>
+            <div className="history-images-grid">
+              {[...viewedImages].reverse().map((img, i) => (
+                <div key={img.path} className="history-image" onClick={() => {
+                  setPreviewList([...viewedImages].reverse().map(v => v.path))
+                  setPreviewIndex(i)
+                }}>
+                  <img src={imageUrl(img.path)} alt="" loading="lazy" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {sortedSessions.length === 0 ? (
           <div className="history-empty">
             <p>No sessions recorded yet.</p>
@@ -94,7 +124,7 @@ export default function HistoryView({ sessions, onClose, onRerun, onClearHistory
                     <div className="history-images-grid">
                       {session.images.map((img, i) => (
                         <div key={i} className="history-image" onClick={() => {
-                          setPreviewSession(session)
+                          setPreviewList(session.images.map(s => s.path))
                           setPreviewIndex(i)
                         }}>
                           <img src={imageUrl(img.path)} alt="" />
@@ -117,16 +147,16 @@ export default function HistoryView({ sessions, onClose, onRerun, onClearHistory
           </div>
         )}
       </div>
-      {previewSession && (
+      {previewList && (
         <ImagePreview
-          imagePath={previewSession.images[previewIndex].path}
-          imageList={previewSession.images.map(img => img.path)}
+          imagePath={previewList[previewIndex]}
+          imageList={previewList}
           currentIndex={previewIndex}
-          onClose={() => setPreviewSession(null)}
+          onClose={() => setPreviewList(null)}
           onPrev={() => setPreviewIndex(i => i - 1)}
           onNext={() => setPreviewIndex(i => i + 1)}
           hasPrev={previewIndex > 0}
-          hasNext={previewIndex < previewSession.images.length - 1}
+          hasNext={previewIndex < previewList.length - 1}
         />
       )}
     </div>

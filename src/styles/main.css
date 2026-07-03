@@ -664,22 +664,39 @@ body {
   object-fit: contain;
 }
 
-.session-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-  padding: 48px 24px 24px;
+/* Bottom control bar — occupies its own row so it never overlaps the image */
+.session-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.session-bar-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+}
+
+.session-bar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 160px;
 }
 
 .session-timer {
-  font-size: 72px;
+  font-size: 40px;
   font-weight: 200;
-  text-align: center;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .session-timer.warning {
@@ -688,12 +705,10 @@ body {
 
 .session-progress {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 16px;
-  margin-top: 8px;
+  gap: 12px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .session-stage {
@@ -703,15 +718,8 @@ body {
 .session-controls {
   display: flex;
   justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-}
-
-.session-reset {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
-  margin-bottom: -8px;
+  align-items: center;
+  gap: 12px;
 }
 
 .session-btn {
@@ -735,8 +743,8 @@ body {
 }
 
 .session-btn.primary {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   background: var(--accent);
   font-size: 22px;
 }
@@ -746,15 +754,22 @@ body {
 }
 
 .session-btn.end {
-  position: absolute;
-  top: 20px;
-  right: 20px;
   width: auto;
   height: auto;
   padding: 8px 16px;
   border-radius: var(--radius-md);
   font-size: 13px;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.session-btn.zoom-reset {
+  width: auto;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .paused-indicator {
@@ -978,6 +993,31 @@ body {
   padding: 80px 20px;
 }
 
+/* Recently Viewed section (browsing history) */
+.viewed-section {
+  margin-bottom: 24px;
+  padding: 16px 20px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.viewed-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.viewed-section-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.btn-small {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
 /* ===== Image Preview ===== */
 .image-preview-overlay {
   position: fixed;
@@ -1087,6 +1127,14 @@ body {
   min-width: 48px;
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+.preview-zoom-controls .preview-controls-divider {
+  min-width: 0;
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 4px;
 }
 
 .preview-nav-btn {

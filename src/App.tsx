@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import TopBar from './components/TopBar'
 import SettingsModal from './components/SettingsModal'
 import Sidebar from './components/Sidebar'
@@ -7,7 +7,7 @@ import SessionModal, { type SessionConfig } from './components/SessionModal'
 import SessionView from './components/SessionView'
 import HistoryView from './components/HistoryView'
 import type { FolderNode } from './electron'
-import type { ProgressivePreset, Session, Settings } from './types'
+import type { ProgressivePreset, Session, Settings, ViewedImage } from './types'
 import { imageUrl } from './utils/imageUrl'
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -34,6 +34,7 @@ export default function App() {
     images: string[]
   } | null>(null)
   const [sessionHistory, setSessionHistory] = useState<Session[]>([])
+  const [viewingHistory, setViewingHistory] = useState<ViewedImage[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [thumbnailProgress, setThumbnailProgress] = useState<{ current: number; total: number } | null>(null)
@@ -51,12 +52,14 @@ export default function App() {
       window.electronAPI.store.get('progressivePresets'),
       window.electronAPI.store.get('settings'),
       window.electronAPI.store.get('sessionHistory'),
-    ]).then(([folders, favs, prsts, sttngs, history]) => {
+      window.electronAPI.store.get('viewingHistory'),
+    ]).then(([folders, favs, prsts, sttngs, history, viewed]) => {
       setReferenceFolders(folders)
       setFavorites(favs)
       setPresets(prsts)
       setSettings(sttngs)
       setSessionHistory(history)
+      setViewingHistory(viewed ?? [])
     })
   }, [])
 
@@ -129,6 +132,13 @@ export default function App() {
     })
   }, [currentImages])
 
+  // Images a session starts from: explicit selection, or every image in the
+  // currently open folder when nothing is selected.
+  const sessionSourceImages = useMemo(
+    () => (selectedImages.size > 0 ? Array.from(selectedImages) : currentImages),
+    [selectedImages, currentImages]
+  )
+
   // Pre-shuffle and preload first images when session modal opens
   useEffect(() => {
     if (!showSessionModal) {
@@ -137,7 +147,7 @@ export default function App() {
       return
     }
 
-    const shuffled = shuffleArray(Array.from(selectedImages))
+    const shuffled = shuffleArray(sessionSourceImages)
     preShuffledImagesRef.current = shuffled
 
     // Preload first ~5 images to warm the browser decode cache
@@ -147,7 +157,7 @@ export default function App() {
       img.src = imageUrl(imagePath)
       return img
     })
-  }, [showSessionModal, selectedImages])
+  }, [showSessionModal, sessionSourceImages])
 
   const handleManageFolders = useCallback(async () => {
     const folder = await window.electronAPI.fs.selectFolder()
@@ -196,9 +206,9 @@ export default function App() {
     setShowSessionModal(false)
     const images = preShuffledImagesRef.current.length > 0
       ? preShuffledImagesRef.current
-      : shuffleArray(Array.from(selectedImages))
+      : shuffleArray(sessionSourceImages)
     setActiveSession({ config, images })
-  }, [selectedImages])
+  }, [sessionSourceImages])
 
   const handleEndSession = useCallback(async (session: Session) => {
     const newHistory = [...sessionHistory, session]
@@ -210,6 +220,24 @@ export default function App() {
   const handleClearHistory = useCallback(async () => {
     await window.electronAPI.store.set('sessionHistory', [])
     setSessionHistory([])
+  }, [])
+
+  const VIEWING_HISTORY_LIMIT = 100
+
+  const handleImageViewed = useCallback((path: string) => {
+    setViewingHistory(prev => {
+      const next = [
+        ...prev.filter(v => v.path !== path),
+        { path, date: new Date().toISOString() },
+      ].slice(-VIEWING_HISTORY_LIMIT)
+      window.electronAPI.store.set('viewingHistory', next)
+      return next
+    })
+  }, [])
+
+  const handleClearViewingHistory = useCallback(async () => {
+    await window.electronAPI.store.set('viewingHistory', [])
+    setViewingHistory([])
   }, [])
 
   const handleUpdateSettings = useCallback(async (newSettings: Settings) => {
@@ -300,6 +328,7 @@ export default function App() {
     <div className="app">
       <TopBar
         selectedCount={selectedImages.size}
+        availableCount={sessionSourceImages.length}
         onHistory={() => setShowHistory(true)}
         onSettings={() => setShowSettings(true)}
         onStartSession={() => setShowSessionModal(true)}
@@ -327,6 +356,7 @@ export default function App() {
             thumbnailCacheRef={thumbnailCacheRef}
             thumbnailCacheVersion={thumbnailCacheVersion}
             onThumbnailsLoaded={handleThumbnailsLoaded}
+            onImageViewed={handleImageViewed}
           />
         ) : (
           <div className="image-grid-container">
@@ -345,16 +375,18 @@ export default function App() {
         isOpen={showSessionModal}
         onClose={() => setShowSessionModal(false)}
         onStart={handleStartSession}
-        selectedCount={selectedImages.size}
+        selectedCount={sessionSourceImages.length}
         presets={presets}
         onSavePreset={handleSavePreset}
       />
       {showHistory && (
         <HistoryView
           sessions={sessionHistory}
+          viewedImages={viewingHistory}
           onClose={() => setShowHistory(false)}
           onRerun={handleRerunSession}
           onClearHistory={handleClearHistory}
+          onClearViewed={handleClearViewingHistory}
         />
       )}
       {showSettings && (

@@ -22,6 +22,8 @@ declare global {
         getSubfolders: (folderPath: string) => Promise<FolderNode[]>
         getImagesInFolder: (folderPath: string) => Promise<string[]>
         fileExists: (filePath: string) => Promise<boolean>
+        showInFinder: (filePath: string) => Promise<void>
+        copyImageToClipboard: (imagePath: string) => Promise<boolean>
         getThumbnails: (imagePaths: string[], priority?: 'high' | 'low') => Promise<Record<string, string>>
         getCachedThumbnails: (imagePaths: string[]) => Promise<Record<string, string>>
         generateThumbnailsInBackground: (folderPaths: string[]) => Promise<void>

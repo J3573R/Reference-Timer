@@ -22,6 +22,7 @@ const defaults: AppData = {
   favorites: [],
   progressivePresets: defaultPresets,
   sessionHistory: [],
+  viewingHistory: [],
   settings: {
     audioChime: true,
   },

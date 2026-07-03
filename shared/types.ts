@@ -27,11 +27,17 @@ export interface Settings {
   audioChime: boolean
 }
 
+export interface ViewedImage {
+  path: string
+  date: string  // ISO string
+}
+
 export interface AppData {
   referenceFolders: string[]
   favorites: string[]
   progressivePresets: ProgressivePreset[]
   sessionHistory: Session[]
+  viewingHistory: ViewedImage[]
   settings: Settings
   thumbnailCache: Record<string, string>
 }

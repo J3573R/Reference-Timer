@@ -3,6 +3,8 @@ import { useTimer } from '../hooks/useTimer'
 import type { SessionConfig } from './SessionModal'
 import type { Stage, Session, SessionImage } from '../types'
 import { useImagePrefetch } from '../hooks/useImagePrefetch'
+import { useZoomPan } from '../hooks/useZoomPan'
+import { useImageActions } from '../hooks/useImageActions'
 import { imageUrl } from '../utils/imageUrl'
 
 interface SessionViewProps {
@@ -87,6 +89,20 @@ export default function SessionView({
   const [fullResLoaded, setFullResLoaded] = useState(false)
   const waitingForLoadRef = useRef(true)
 
+  const {
+    zoom,
+    isDragging,
+    containerRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    imageStyle,
+  } = useZoomPan(current?.imagePath ?? '')
+  const { copied, copyImage, revealInFinder } = useImageActions(current?.imagePath ?? '')
+
   const recordImageTime = useCallback(() => {
     const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
     setSessionImages(prev => [...prev, { path: current.imagePath, timeSpent }])
@@ -115,13 +131,12 @@ export default function SessionView({
   }, [currentIndex, queue.length, recordImageTime, audioChime])
 
   const goToPrevious = useCallback(() => {
-    if (current?.duration === 0) return  // quickstart: prevent time data loss
     if (currentIndex > 0) {
       recordImageTime()
       setCurrentIndex(prev => prev - 1)
       setSessionImages(prev => prev.slice(0, -1))
     }
-  }, [currentIndex, recordImageTime, current?.duration])
+  }, [currentIndex, recordImageTime])
 
   const { timeLeft, isPaused, togglePause, reset, resetAndStop } = useTimer({
     duration: current ? current.duration : 60,
@@ -166,22 +181,32 @@ export default function SessionView({
   }, [fullResLoaded, current, reset])
 
   useEffect(() => {
-    const isQuickstart = current?.duration === 0
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) return
       if (e.code === 'Space') {
         e.preventDefault()
         handleTogglePause()
       } else if (e.code === 'ArrowRight') {
         goToNext()
-      } else if (e.code === 'ArrowLeft' && !isQuickstart) {
+      } else if (e.code === 'ArrowLeft') {
         goToPrevious()
-      } else if (e.code === 'KeyR' && !isQuickstart) {
+      } else if (e.code === 'KeyR') {
         handleResetTimer()
+      } else if (e.key === '+' || e.key === '=') {
+        zoomIn()
+      } else if (e.key === '-') {
+        zoomOut()
+      } else if (e.key === '0') {
+        resetZoom()
+      } else if (e.code === 'KeyC') {
+        copyImage()
+      } else if (e.code === 'KeyF') {
+        revealInFinder()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleTogglePause, goToNext, goToPrevious, handleResetTimer, current?.duration])
+  }, [handleTogglePause, goToNext, goToPrevious, handleResetTimer, zoomIn, zoomOut, resetZoom, copyImage, revealInFinder])
 
   const handleEndSession = useCallback(() => {
     const timeSpent = Math.round((Date.now() - imageStartTime) / 1000)
@@ -257,8 +282,16 @@ export default function SessionView({
 
   return (
     <div className="session-view">
-      <div className={`session-image ${isPaused ? 'paused' : ''}`}>
-        <div className="session-image-wrapper">
+      <div
+        ref={containerRef}
+        className={`session-image ${isPaused ? 'paused' : ''}`}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{ cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+      >
+        <div className="session-image-wrapper" style={imageStyle}>
           {!fullResLoaded && !isLoaded(current.imagePath) && thumbnailCacheRef.current[current.imagePath] && (
             <img
               className="session-image-thumbnail"
@@ -270,6 +303,7 @@ export default function SessionView({
             className="session-image-full"
             src={imageUrl(current.imagePath)}
             alt=""
+            draggable={false}
             onLoad={() => setFullResLoaded(true)}
             style={{ opacity: fullResLoaded || isLoaded(current.imagePath) ? 1 : 0 }}
           />
@@ -277,28 +311,27 @@ export default function SessionView({
         {isPaused && <div className="paused-indicator">||</div>}
       </div>
 
-      <div className="session-overlay">
-        <div className={`session-timer ${current?.duration !== 0 && timeLeft <= 5 ? 'warning' : ''}`}>
-          {formatTime(timeLeft)}
-        </div>
-        <div className="session-progress">
-          <span>{currentIndex + 1} / {queue.length}</span>
-          {current.stageName && (
-            <span className="session-stage">{current.stageName}</span>
-          )}
-        </div>
-        {current?.duration !== 0 && (
-          <div className="session-reset">
-            <button className="session-btn" onClick={handleResetTimer} title="Reset timer (R)">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M3.5 2.5v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M3.5 7.5A7 7 0 1 1 3 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </button>
+      <div className="session-bar">
+        <div className="session-bar-left">
+          <div className={`session-timer ${current?.duration !== 0 && timeLeft <= 5 ? 'warning' : ''}`}>
+            {formatTime(timeLeft)}
           </div>
-        )}
+          <div className="session-progress">
+            <span>{currentIndex + 1} / {queue.length}</span>
+            {current.stageName && (
+              <span className="session-stage">{current.stageName}</span>
+            )}
+          </div>
+        </div>
+
         <div className="session-controls">
-          <button className="session-btn" onClick={goToPrevious} disabled={currentIndex === 0 || current?.duration === 0}>
+          <button className="session-btn" onClick={handleResetTimer} title="Reset timer (R)">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M3.5 2.5v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3.5 7.5A7 7 0 1 1 3 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+          <button className="session-btn" onClick={goToPrevious} disabled={currentIndex === 0}>
             &lt;
           </button>
           <button className="session-btn primary" onClick={handleTogglePause}>
@@ -308,11 +341,24 @@ export default function SessionView({
             &gt;
           </button>
         </div>
-      </div>
 
-      <button className="session-btn end" onClick={() => setShowConfirm(true)}>
-        End Session
-      </button>
+        <div className="session-bar-right">
+          {zoom !== 1 && (
+            <button className="session-btn zoom-reset" onClick={resetZoom} title="Reset zoom (0)">
+              {Math.round(zoom * 100)}% ⟲
+            </button>
+          )}
+          <button className="session-btn" onClick={copyImage} title="Copy image to clipboard (C)">
+            {copied ? '✓' : '⧉'}
+          </button>
+          <button className="session-btn" onClick={revealInFinder} title="Reveal in Finder (F)">
+            ⌖
+          </button>
+          <button className="session-btn end" onClick={() => setShowConfirm(true)}>
+            End Session
+          </button>
+        </div>
+      </div>
 
       {showConfirm && (
         <div className="confirm-dialog">

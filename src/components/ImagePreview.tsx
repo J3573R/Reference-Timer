@@ -1,5 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useImagePrefetch } from '../hooks/useImagePrefetch'
+import { useZoomPan } from '../hooks/useZoomPan'
+import { useImageActions } from '../hooks/useImageActions'
 import { imageUrl } from '../utils/imageUrl'
 
 interface ImagePreviewProps {
@@ -23,22 +25,25 @@ export default function ImagePreview({
   hasPrev = false,
   hasNext = false,
 }: ImagePreviewProps) {
-  const [zoom, setZoom] = useState(1)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const containerRef = useRef<HTMLDivElement>(null)
-  const { isLoaded } = useImagePrefetch(currentIndex, imageList)
-
-  // Reset zoom and position when image changes
-  useEffect(() => {
-    setZoom(1)
-    setPosition({ x: 0, y: 0 })
-  }, [imagePath])
+  const {
+    zoom,
+    isDragging,
+    containerRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    imageStyle,
+  } = useZoomPan(imagePath)
+  const { copied, copyImage, revealInFinder } = useImageActions(imagePath)
+  useImagePrefetch(currentIndex, imageList)
 
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) return
       switch (e.key) {
         case 'Escape':
           onClose()
@@ -51,70 +56,33 @@ export default function ImagePreview({
           break
         case '+':
         case '=':
-          setZoom(z => Math.min(z + 0.25, 5))
+          zoomIn()
           break
         case '-':
-          setZoom(z => Math.max(z - 0.25, 0.25))
+          zoomOut()
           break
         case '0':
-          setZoom(1)
-          setPosition({ x: 0, y: 0 })
+          resetZoom()
+          break
+        case 'c':
+          copyImage()
+          break
+        case 'f':
+          revealInFinder()
           break
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose, onPrev, onNext, hasPrev, hasNext])
-
-  // Handle wheel zoom with non-passive listener to allow preventDefault
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      const delta = e.deltaY > 0 ? -0.1 : 0.1
-      setZoom(z => Math.min(Math.max(z + delta, 0.25), 5))
-    }
-
-    container.addEventListener('wheel', handleWheel, { passive: false })
-    return () => container.removeEventListener('wheel', handleWheel)
-  }, [])
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (zoom > 1) {
-      setIsDragging(true)
-      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
-    }
-  }, [zoom, position])
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      })
-    }
-  }, [isDragging, dragStart])
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-  }, [])
-
-  const handleZoomIn = () => setZoom(z => Math.min(z + 0.25, 5))
-  const handleZoomOut = () => setZoom(z => Math.max(z - 0.25, 0.25))
-  const handleResetZoom = () => {
-    setZoom(1)
-    setPosition({ x: 0, y: 0 })
-  }
+  }, [onClose, onPrev, onNext, hasPrev, hasNext, zoomIn, zoomOut, resetZoom, copyImage, revealInFinder])
 
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
     // Close if clicking the container background, not the image
     if (e.target === containerRef.current) {
       onClose()
     }
-  }, [onClose])
+  }, [onClose, containerRef])
 
   return (
     <div className="image-preview-overlay" onClick={onClose}>
@@ -135,10 +103,7 @@ export default function ImagePreview({
             alt=""
             draggable={false}
             onClick={e => e.stopPropagation()}
-            style={{
-              transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-            }}
+            style={imageStyle}
           />
         </div>
       </div>
@@ -148,12 +113,17 @@ export default function ImagePreview({
         ✕
       </button>
 
-      {/* Zoom controls */}
-      <div className="preview-zoom-controls">
-        <button onClick={handleZoomOut} title="Zoom out (-)">−</button>
+      {/* Zoom + file controls — stop propagation so clicks don't hit the overlay's close handler */}
+      <div className="preview-zoom-controls" onClick={e => e.stopPropagation()}>
+        <button onClick={zoomOut} title="Zoom out (-)">−</button>
         <span>{Math.round(zoom * 100)}%</span>
-        <button onClick={handleZoomIn} title="Zoom in (+)">+</button>
-        <button onClick={handleResetZoom} title="Reset zoom (0)">⟲</button>
+        <button onClick={zoomIn} title="Zoom in (+)">+</button>
+        <button onClick={resetZoom} title="Reset zoom (0)">⟲</button>
+        <span className="preview-controls-divider" />
+        <button onClick={copyImage} title="Copy image to clipboard (C)">
+          {copied ? '✓' : '⧉'}
+        </button>
+        <button onClick={revealInFinder} title="Reveal in Finder (F)">⌖</button>
       </div>
 
       {/* Navigation arrows */}
@@ -184,7 +154,7 @@ export default function ImagePreview({
 
       {/* Instructions */}
       <div className="preview-instructions">
-        Scroll to zoom • Drag to pan • Arrow keys to navigate • Esc to close
+        Scroll to zoom • Drag to pan • C copy • F reveal in Finder • Esc to close
       </div>
     </div>
   )

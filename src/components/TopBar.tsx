@@ -1,5 +1,6 @@
 interface TopBarProps {
   selectedCount: number
+  availableCount: number
   onHistory: () => void
   onSettings: () => void
   onStartSession: () => void
@@ -8,7 +9,7 @@ interface TopBarProps {
   thumbnailProgress?: { current: number; total: number } | null
 }
 
-export default function TopBar({ selectedCount, onHistory, onSettings, onStartSession, onRefreshFolders, hasFolders, thumbnailProgress }: TopBarProps) {
+export default function TopBar({ selectedCount, availableCount, onHistory, onSettings, onStartSession, onRefreshFolders, hasFolders, thumbnailProgress }: TopBarProps) {
   return (
     <div className="top-bar">
       <h1>Reference Timer</h1>
@@ -39,9 +40,10 @@ export default function TopBar({ selectedCount, onHistory, onSettings, onStartSe
         <button
           className="btn btn-primary"
           onClick={onStartSession}
-          disabled={selectedCount === 0}
+          disabled={availableCount === 0}
+          title={selectedCount === 0 && availableCount > 0 ? 'No selection — uses all images in the open folder' : undefined}
         >
-          Start Session {selectedCount > 0 && `(${selectedCount})`}
+          Start Session {availableCount > 0 && `(${selectedCount > 0 ? selectedCount : `folder: ${availableCount}`})`}
         </button>
       </div>
     </div>

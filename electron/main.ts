@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, protocol } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, shell, clipboard, nativeImage } from 'electron'
 import path from 'path'
 import fs from 'fs'
+import sharp from 'sharp'
 import { getStore } from './store.js'
 import { selectFolder, scanFolder, getSubfolders, getImagesInFolder, fileExists, getAllImagesRecursive, needsThumbnail } from './fileSystem.js'
 import { ThumbnailQueue } from './thumbnailQueue.js'
@@ -81,6 +82,26 @@ ipcMain.handle('fs:getImagesInFolder', (_event, folderPath: string) => {
 
 ipcMain.handle('fs:fileExists', (_event, filePath: string) => {
   return fileExists(filePath)
+})
+
+ipcMain.handle('fs:showInFinder', (_event, filePath: string) => {
+  shell.showItemInFolder(filePath)
+})
+
+ipcMain.handle('fs:copyImageToClipboard', async (_event, imagePath: string) => {
+  let image = nativeImage.createFromPath(imagePath)
+  if (image.isEmpty()) {
+    // Formats nativeImage can't decode (e.g. webp): convert to PNG via Sharp
+    try {
+      const buffer = await sharp(imagePath).png().toBuffer()
+      image = nativeImage.createFromBuffer(buffer)
+    } catch {
+      return false
+    }
+  }
+  if (image.isEmpty()) return false
+  clipboard.writeImage(image)
+  return true
 })
 
 ipcMain.handle('fs:getThumbnails', async (_event, imagePaths: string[], priority: 'high' | 'low' = 'high') => {

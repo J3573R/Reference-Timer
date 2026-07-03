@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSubfolders: (folderPath: string) => ipcRenderer.invoke('fs:getSubfolders', folderPath),
     getImagesInFolder: (folderPath: string) => ipcRenderer.invoke('fs:getImagesInFolder', folderPath),
     fileExists: (filePath: string) => ipcRenderer.invoke('fs:fileExists', filePath),
+    showInFinder: (filePath: string) => ipcRenderer.invoke('fs:showInFinder', filePath),
+    copyImageToClipboard: (imagePath: string) => ipcRenderer.invoke('fs:copyImageToClipboard', imagePath),
     getThumbnails: (imagePaths: string[], priority: 'high' | 'low' = 'high') =>
       ipcRenderer.invoke('fs:getThumbnails', imagePaths, priority),
     getCachedThumbnails: (imagePaths: string[]) =>
